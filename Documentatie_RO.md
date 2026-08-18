@@ -206,39 +206,6 @@ Analiza procesului actual evidențiază mai multe puncte în care activitățile
 | 7 | Informațiile istorice sunt accesate manual | Contextul relevant poate să nu fie identificat la momentul potrivit |
 | 8 | Deciziile și acțiunile pot fi distribuite între mai multe sisteme și persoane | Trasabilitatea procesului poate fi dificil de reconstruit |
 
-### 2.9 Exemplu de situație în procesul AS-IS
-
-Considerăm următorul scenariu: într-un interval scurt de timp, mai mulți utilizatori raportează probleme legate de accesarea serviciului VPN.
-
-INC001  „Cannot access corporate VPN”
-INC002  „VPN connection failing”
-INC003  „Remote employees cannot connect to VPN”
-INC004  „VPN authentication unavailable”
-INC005  „Unable to establish VPN connection”
-
-În procesul AS-IS, aceste tichete sunt create și procesate inițial ca incidente individuale.
-
-Pe măsură ce numărul incidentelor crește, un operator sau Incident Manager poate observa că:
-- incidentele au fost create într-un interval de timp apropiat;
-- serviciul afectat este același;
-- simptomele raportate sunt similare;
-- numărul utilizatorilor afectați este în creștere.
-
-Pe baza acestor informații poate fi inițiată investigarea unui posibil Major Incident.
-
-Acest exemplu evidențiază principala limitare a procesului actual: relația dintre incidente poate deveni vizibilă numai după analiza mai multor tichete, iar momentul identificării depinde de intervenția și observația persoanelor implicate.
-
-Procesul actual permite gestionarea incidentelor și a situațiilor de tip Major Incident, însă identificarea și corelarea incidentelor similare presupun un nivel semnificativ de intervenție manuală.
-
-Principalele limitări identificate sunt:
-- detectarea potențialelor incidente majore poate fi întârziată;
-- incidentele similare pot rămâne fragmentate;
-- corelarea incidentelor necesită analiză manuală;
-- escaladarea și declararea necesită coordonare între persoane și echipe;
-- comunicarea presupune pregătire manuală;
-- informațiile istorice nu sunt întotdeauna valorificate în mod sistematic;
-- trasabilitatea deciziilor poate fi dificil de reconstruit.
-
 ## 3. Soluția propusă / Fluxul TO-BE
 ## 4. Arhitectura generală a sistemului
 ## 5. Structura datelor și abordarea RAG
