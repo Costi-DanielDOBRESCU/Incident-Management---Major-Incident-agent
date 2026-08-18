@@ -98,22 +98,113 @@ Clasificare și prioritizare
        ↓
 Alocare către echipa responsabilă
        ↓
-Analiză și investigare
+Analiză și investigare manuală
        ↓
 Căutare manuală a incidentelor similare
        ↓
 Identificare posibil Major Incident
        ↓
-Escaladare / confirmare
+Escaladare / Confirmare
        ↓
 Declarare Major Incident
        ↓
 Comunicare către utilizatori și management
        ↓
-Rezolvare
+Rezolvare Ticket
        ↓
-Închidere
+Închidere Ticket
 ```
+
+Procesul este în principal bazat pe analiza individuală a tichetelor și pe intervenția persoanelor responsabile de Incident Management. Corelarea mai multor incidente care pot avea aceeași cauză este realizată în funcție de informațiile disponibile și de observațiile echipelor implicate.
+
+## 2.2 Raportarea și înregistrarea incidentelor
+
+Fiecare problemă raportată de un utilizator este înregistrată, de regulă, ca un tichet individual în sistemul ITSM.
+
+În cazul în care mai mulți utilizatori întâmpină aceeași problemă, pot fi create mai multe tichete distincte. De exemplu, pentru o problemă asociată serviciului VPN pot apărea următoarele incidente:
+- INC001 — „Cannot access corporate VPN”
+- INC002 — „VPN connection failing”
+- INC003 — „Remote employees cannot connect to VPN”
+- INC004 — „VPN authentication unavailable”
+- INC005 — „Unable to establish VPN connection”
+
+Deși aceste tichete pot descrie aceeași problemă din perspective diferite, ele sunt inițial înregistrate și procesate separat.
+
+## 2.3 Clasificarea, prioritizarea și alocarea
+
+După înregistrare, fiecare tichet este analizat și clasificat conform procesului ITSM existent.
+În această etapă sunt stabilite, în funcție de informațiile disponibile:
+- categoria incidentului;
+- serviciul afectat;
+- impactul;
+- urgența și prioritatea;
+- echipa responsabilă de investigare și rezolvare.
+
+Tichetele sunt apoi alocate către grupurile de suport sau echipele tehnice corespunzătoare.
+Analiza este realizată în principal la nivelul fiecărui tichet. În consecință, faptul că mai multe incidente pot avea aceeași cauză nu este întotdeauna evident în această etapă.
+
+## 2.4 Investigarea și identificarea incidentelor similare
+
+Echipa responsabilă investighează fiecare incident și încearcă să determine cauza problemei.
+Atunci când există suspiciunea că mai multe incidente sunt corelate, operatorii pot căuta manual alte tichete cu simptome similare. Această analiză poate lua în considerare informații precum:
+- descrierea incidentului;
+- serviciul afectat;
+- momentul apariției;
+- simptomele raportate;
+- numărul de utilizatori afectați;
+- informațiile disponibile în sistemul ITSM.
+
+Identificarea unei relații între incidente depinde de informațiile disponibile și de experiența persoanelor care efectuează analiza.
+În cazul unor formulări diferite ale aceleiași probleme, corelarea poate necesita o analiză suplimentară.
+
+## 2.5 Identificarea și confirmarea unui posibil Incident Major
+
+Un posibil Incident Major poate fi identificat atunci când operatorii observă un volum neobișnuit de incidente similare, un impact semnificativ asupra unui serviciu sau alte indicii care sugerează existența unei probleme comune.
+
+Identificarea poate apărea, de exemplu:
+- în urma analizei dashboard-urilor ITSM;
+- după mai multe escaladări;
+- prin comunicarea dintre echipe;
+- ca urmare a creșterii numărului de incidente pentru același serviciu;
+- în urma identificării unor simptome comune în mai multe tichete.
+
+După identificarea unui posibil Major Incident, situația este analizată împreună cu echipele tehnice relevante pentru confirmarea impactului și a existenței unei posibile cauze comune.
+În funcție de criteriile organizației, Incident Manager-ul sau persoana responsabilă decide dacă incidentul trebuie declarat Major Incident.
+
+## 2.6 Comunicarea
+
+Pe durata unui Major Incident, informațiile despre incident sunt comunicate către părțile interesate relevante.
+Comunicarea poate include:
+- serviciul afectat;
+- problema identificată sau suspectată;
+- impactul asupra utilizatorilor;
+- statusul curent;
+- acțiunile aflate în desfășurare;
+- următorul update estimat, atunci când acesta este disponibil.
+
+Mesajele pot fi adaptate în funcție de audiență. Utilizatorii finali necesită, de regulă, informații orientate către impact și disponibilitatea serviciului, în timp ce managementul necesită informații suplimentare privind amploarea incidentului, impactul și acțiunile de remediere.
+În procesul actual, pregătirea și transmiterea comunicărilor presupun intervenție manuală.
+
+## 2.7 Rezolvarea și închiderea
+
+După identificarea și implementarea soluției, serviciul este readus în starea normală de funcționare.
+Incidentele asociate sunt actualizate conform procedurilor ITSM, iar după îndeplinirea criteriilor de închidere acestea sunt închise.
+Informațiile rezultate în urma incidentului pot fi ulterior utilizate pentru documentație, analiză post-incident și îmbunătățirea procesului.
+
+## 2.8 Principalele blocaje și limitări ale procesului
+
+Analiza procesului actual evidențiază mai multe puncte în care activitățile manuale pot produce întârzieri sau inconsistențe.
+
+| # | Blocaj / limitare | Impact asupra procesului |
+|---|---|---|
+| 1 | Identificarea unui volum neobișnuit de incidente depinde de observația operatorilor | Un posibil Major Incident poate fi identificat cu întârziere |
+| 2 | Tichetele sunt analizate inițial individual | Incidentele care au aceeași cauză pot rămâne fragmentate |
+| 3 | Incidentele similare pot utiliza formulări diferite | Corelarea lor necesită analiză manuală |
+| 4 | Confirmarea unui posibil Major Incident necesită coordonare între echipe | Poate crește timpul până la escaladare și declarare |
+| 5 | Asocierea incidentelor cu un incident-părinte poate fi manuală | Crește efortul operațional și riscul de inconsistențe |
+| 6 | Comunicările sunt pregătite și adaptate manual | Pot apărea întârzieri sau diferențe între comunicări |
+| 7 | Informațiile istorice sunt accesate manual | Contextul relevant poate să nu fie identificat la momentul potrivit |
+| 8 | Deciziile și acțiunile pot fi distribuite între mai multe sisteme și persoane | Trasabilitatea procesului poate fi dificil de reconstruit |
 
 ## 3. Soluția propusă / Fluxul TO-BE
 ## 4. Arhitectura generală a sistemului
