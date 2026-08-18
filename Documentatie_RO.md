@@ -207,6 +207,57 @@ Analiza procesului actual evidențiază mai multe puncte în care activitățile
 | 8 | Deciziile și acțiunile pot fi distribuite între mai multe sisteme și persoane | Trasabilitatea procesului poate fi dificil de reconstruit |
 
 ## 3. Soluția propusă / Fluxul TO-BE
+
+### 3.1 Descrierea soluției
+
+Soluția propusă urmărește automatizarea etapelor de identificare și evaluare a incidentelor care pot indica existența unui Incident Major, păstrând controlul uman asupra deciziilor cu impact operațional.
+
+În locul identificării exclusiv manuale a relațiilor dintre tichete, sistemul analizează continuu incidentele noi și identifică grupuri de incidente care prezintă caracteristici comune.
+
+Fluxul TO-BE este:
+```text
+Tichet nou
+    ↓
+Analiză și corelare cu incidente recente
+    ↓
+Identificarea unui grup de incidente similare
+    ↓
+Evaluare posibil Incident Major
+    ↓
+Propunere Incident Major
+    ↓
+Validare și aprobare Incident Manager
+    ↓
+Declarare Incident Major
+    ↓
+Pregătire comunicare
+    ↓
+Aprobare comunicare
+    ↓
+Transmitere comunicare
+    ↓
+Monitorizare evoluție incident
+    ↓
+Rezolvare și comunicare de închidere
+```
+
+### 3.2 Fluxul TO-BE
+
+La apariția unui tichet nou, sistemul verifică dacă acesta este asociat unor incidente recente cu caracteristici similare.
+
+Dacă nu este identificată o corelare relevantă, tichetul continuă pe fluxul standard de Incident Management.
+
+Dacă sunt identificate suficiente incidente similare, acestea sunt grupate într-un posibil cluster de incidente corelate. Clusterul este evaluat pentru a determina dacă există indicii suficiente pentru inițierea procesului de Incident Major.
+
+În cazul identificării unui posibil Incident Major, Incident Manager-ul primește o propunere care include informațiile relevante pentru luarea deciziei.
+
+Dacă propunerea este aprobată, incidentul este declarat Incident Major și sunt inițiate activitățile corespunzătoare, inclusiv comunicarea către utilizatori și management.
+
+Pe durata incidentului, sistemul continuă să urmărească evoluția situației și poate propune actualizări ale statusului sau comunicări suplimentare.
+
+După rezolvarea incidentului, poate fi propusă comunicarea de închidere, care este supusă aceluiași proces de validare înainte de transmitere.
+
+
 ## 4. Arhitectura generală a sistemului
 ## 5. Structura datelor și abordarea RAG
 ## 6. Reasoning / Decizie / Execuție
