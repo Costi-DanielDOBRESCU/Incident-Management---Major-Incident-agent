@@ -83,6 +83,38 @@ Obiectivul proiectului este dezvoltarea unui agent AI (**Major Incident Agent**)
 - Accesul la modelele LLM/embeddings (Ollama local sau Groq API free tier) este disponibil în mediul de dezvoltare/demo.
 
 ## 2. Înțelegerea procesului (AS-IS)
+## 2.1 Procesul tradițional de Incident Management
+
+Într-un proces ITSM tradițional, incidentele sunt raportate și gestionate inițial ca tichete individuale. Un utilizator poate raporta o problemă prin intermediul unui portal self-service, email, telefon sau al altui canal disponibil, iar sistemul ITSM creează un tichet asociat problemei raportate.
+
+Procesul tradițional poate fi reprezentat astfel:
+
+```text
+Incident raportat
+       ↓
+Creare tichet
+       ↓
+Clasificare și prioritizare
+       ↓
+Alocare către echipa responsabilă
+       ↓
+Analiză și investigare
+       ↓
+Căutare manuală a incidentelor similare
+       ↓
+Identificare posibil Major Incident
+       ↓
+Escaladare / confirmare
+       ↓
+Declarare Major Incident
+       ↓
+Comunicare către utilizatori și management
+       ↓
+Rezolvare
+       ↓
+Închidere
+```
+
 ## 3. Soluția propusă / Fluxul TO-BE
 ## 4. Arhitectura generală a sistemului
 ## 5. Structura datelor și abordarea RAG
