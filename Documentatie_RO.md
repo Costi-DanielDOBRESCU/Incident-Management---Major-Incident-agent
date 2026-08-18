@@ -83,7 +83,7 @@ Obiectivul proiectului este dezvoltarea unui agent AI (**Major Incident Agent**)
 - Accesul la modelele LLM/embeddings (Ollama local sau Groq API free tier) este disponibil în mediul de dezvoltare/demo.
 
 ## 2. Înțelegerea procesului (AS-IS)
-## 2.1 Procesul tradițional de Incident Management
+### 2.1 Procesul tradițional de Incident Management
 
 Într-un proces ITSM tradițional, incidentele sunt raportate și gestionate inițial ca tichete individuale. Un utilizator poate raporta o problemă prin intermediul unui portal self-service, email, telefon sau al altui canal disponibil, iar sistemul ITSM creează un tichet asociat problemei raportate.
 
@@ -117,7 +117,7 @@ Rezolvare Ticket
 
 Procesul este în principal bazat pe analiza individuală a tichetelor și pe intervenția persoanelor responsabile de Incident Management. Corelarea mai multor incidente care pot avea aceeași cauză este realizată în funcție de informațiile disponibile și de observațiile echipelor implicate.
 
-## 2.2 Raportarea și înregistrarea incidentelor
+### 2.2 Raportarea și înregistrarea incidentelor
 
 Fiecare problemă raportată de un utilizator este înregistrată, de regulă, ca un tichet individual în sistemul ITSM.
 
@@ -130,7 +130,7 @@ Fiecare problemă raportată de un utilizator este înregistrată, de regulă, c
 
 Deși aceste tichete pot descrie aceeași problemă din perspective diferite, ele sunt inițial înregistrate și procesate separat.
 
-## 2.3 Clasificarea, prioritizarea și alocarea
+### 2.3 Clasificarea, prioritizarea și alocarea
 
 După înregistrare, fiecare tichet este analizat și clasificat conform procesului ITSM existent.
 În această etapă sunt stabilite, în funcție de informațiile disponibile:
@@ -143,7 +143,7 @@ După înregistrare, fiecare tichet este analizat și clasificat conform procesu
 Tichetele sunt apoi alocate către grupurile de suport sau echipele tehnice corespunzătoare.
 Analiza este realizată în principal la nivelul fiecărui tichet. În consecință, faptul că mai multe incidente pot avea aceeași cauză nu este întotdeauna evident în această etapă.
 
-## 2.4 Investigarea și identificarea incidentelor similare
+### 2.4 Investigarea și identificarea incidentelor similare
 
 Echipa responsabilă investighează fiecare incident și încearcă să determine cauza problemei.
 Atunci când există suspiciunea că mai multe incidente sunt corelate, operatorii pot căuta manual alte tichete cu simptome similare. Această analiză poate lua în considerare informații precum:
@@ -157,7 +157,7 @@ Atunci când există suspiciunea că mai multe incidente sunt corelate, operator
 Identificarea unei relații între incidente depinde de informațiile disponibile și de experiența persoanelor care efectuează analiza.
 În cazul unor formulări diferite ale aceleiași probleme, corelarea poate necesita o analiză suplimentară.
 
-## 2.5 Identificarea și confirmarea unui posibil Incident Major
+### 2.5 Identificarea și confirmarea unui posibil Incident Major
 
 Un posibil Incident Major poate fi identificat atunci când operatorii observă un volum neobișnuit de incidente similare, un impact semnificativ asupra unui serviciu sau alte indicii care sugerează existența unei probleme comune.
 
@@ -171,7 +171,7 @@ Identificarea poate apărea, de exemplu:
 După identificarea unui posibil Major Incident, situația este analizată împreună cu echipele tehnice relevante pentru confirmarea impactului și a existenței unei posibile cauze comune.
 În funcție de criteriile organizației, Incident Manager-ul sau persoana responsabilă decide dacă incidentul trebuie declarat Major Incident.
 
-## 2.6 Comunicarea
+### 2.6 Comunicarea
 
 Pe durata unui Major Incident, informațiile despre incident sunt comunicate către părțile interesate relevante.
 Comunicarea poate include:
@@ -185,13 +185,13 @@ Comunicarea poate include:
 Mesajele pot fi adaptate în funcție de audiență. Utilizatorii finali necesită, de regulă, informații orientate către impact și disponibilitatea serviciului, în timp ce managementul necesită informații suplimentare privind amploarea incidentului, impactul și acțiunile de remediere.
 În procesul actual, pregătirea și transmiterea comunicărilor presupun intervenție manuală.
 
-## 2.7 Rezolvarea și închiderea
+### 2.7 Rezolvarea și închiderea
 
 După identificarea și implementarea soluției, serviciul este readus în starea normală de funcționare.
 Incidentele asociate sunt actualizate conform procedurilor ITSM, iar după îndeplinirea criteriilor de închidere acestea sunt închise.
 Informațiile rezultate în urma incidentului pot fi ulterior utilizate pentru documentație, analiză post-incident și îmbunătățirea procesului.
 
-## 2.8 Principalele blocaje și limitări ale procesului
+### 2.8 Principalele blocaje și limitări ale procesului
 
 Analiza procesului actual evidențiază mai multe puncte în care activitățile manuale pot produce întârzieri sau inconsistențe.
 
@@ -205,6 +205,39 @@ Analiza procesului actual evidențiază mai multe puncte în care activitățile
 | 6 | Comunicările sunt pregătite și adaptate manual | Pot apărea întârzieri sau diferențe între comunicări |
 | 7 | Informațiile istorice sunt accesate manual | Contextul relevant poate să nu fie identificat la momentul potrivit |
 | 8 | Deciziile și acțiunile pot fi distribuite între mai multe sisteme și persoane | Trasabilitatea procesului poate fi dificil de reconstruit |
+
+### 2.9 Exemplu de situație în procesul AS-IS
+
+Considerăm următorul scenariu: într-un interval scurt de timp, mai mulți utilizatori raportează probleme legate de accesarea serviciului VPN.
+
+INC001  „Cannot access corporate VPN”
+INC002  „VPN connection failing”
+INC003  „Remote employees cannot connect to VPN”
+INC004  „VPN authentication unavailable”
+INC005  „Unable to establish VPN connection”
+
+În procesul AS-IS, aceste tichete sunt create și procesate inițial ca incidente individuale.
+
+Pe măsură ce numărul incidentelor crește, un operator sau Incident Manager poate observa că:
+- incidentele au fost create într-un interval de timp apropiat;
+- serviciul afectat este același;
+- simptomele raportate sunt similare;
+- numărul utilizatorilor afectați este în creștere.
+
+Pe baza acestor informații poate fi inițiată investigarea unui posibil Major Incident.
+
+Acest exemplu evidențiază principala limitare a procesului actual: relația dintre incidente poate deveni vizibilă numai după analiza mai multor tichete, iar momentul identificării depinde de intervenția și observația persoanelor implicate.
+
+Procesul actual permite gestionarea incidentelor și a situațiilor de tip Major Incident, însă identificarea și corelarea incidentelor similare presupun un nivel semnificativ de intervenție manuală.
+
+Principalele limitări identificate sunt:
+- detectarea potențialelor incidente majore poate fi întârziată;
+- incidentele similare pot rămâne fragmentate;
+- corelarea incidentelor necesită analiză manuală;
+- escaladarea și declararea necesită coordonare între persoane și echipe;
+- comunicarea presupune pregătire manuală;
+- informațiile istorice nu sunt întotdeauna valorificate în mod sistematic;
+- trasabilitatea deciziilor poate fi dificil de reconstruit.
 
 ## 3. Soluția propusă / Fluxul TO-BE
 ## 4. Arhitectura generală a sistemului
