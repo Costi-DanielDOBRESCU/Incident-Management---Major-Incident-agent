@@ -328,9 +328,137 @@ Fiecare tichet și fiecare cluster/incident au un state propriu, iar trecerea î
 <img src="diagram_architecture.png" alt="Handoff-uri între agenți" width="85%">
 
 ### 4.6 Diagramă de secvență (flux end-to-end)
-
+TBD
 
 ## 5. Structura datelor și abordarea RAG
+
+### 5.1 Entități principale și structura datelor
+
+**Ticket**
+```json
+{
+  "id": "INC-10234",
+  "source": "jira_mock",
+  "created_at": "2026-08-19T09:12:00Z",
+  "reporter": "user_412",
+  "service": "VPN Gateway",
+  "summary": "Cannot access corporate VPN",
+  "description": "Unable to connect to VPN since 9am, error 'authentication timeout'.",
+  "category": "Network",
+  "priority": "P2",
+  "status": "Open",
+  "location": "RO-Timisoara"
+}
+```
+
+**IncidentCluster** (rezultat al Detection Pipeline)
+```json
+{
+  "cluster_id": "CL-2026-0819-004",
+  "ticket_ids": ["INC-10234", "INC-10235", "INC-10238", "INC-10241"],
+  "centroid_similarity": 0.87,
+  "service_guess": "VPN Gateway",
+  "window_start": "2026-08-19T09:00:00Z",
+  "window_end": "2026-08-19T09:15:00Z",
+  "ticket_count": 4
+}
+```
+
+**MajorIncident**
+```json
+{
+  "incident_id": "MAJ-2026-0043",
+  "cluster_id": "CL-2026-0819-004",
+  "status": "Declared",
+  "severity": "SEV2",
+  "declared_by": "incident_manager_07",
+  "declared_at": "2026-08-19T09:22:00Z",
+  "root_cause_suspected": "VPN authentication service degradation"
+}
+```
+
+**KnowledgeBaseDocument** (colecții ChromaDB)
+```json
+{
+  "doc_id": "PM-2025-0117",
+  "type": "post_mortem",
+  "service": "VPN Gateway",
+  "summary": "VPN outage caused by expired auth certificate",
+  "resolution": "Certificate renewed, monitoring alert added",
+  "tags": ["vpn", "authentication", "certificate"]
+}
+```
+
+**AuditLogEntry**
+```json
+{
+  "event_id": "evt_88213",
+  "timestamp": "2026-08-19T09:22:05Z",
+  "actor": "assessment_agent",
+  "action": "propose_major_incident",
+  "input_ref": "cluster:CL-2026-0819-004",
+  "output_ref": "assessment:AS-0043",
+  "model": "llama-3.1-8b-instant (groq)",
+  "rag_sources": ["PM-2025-0117", "RB-VPN-002"]
+}
+```
+### 5.2 Strategia de date mock
+
+- Volum: **200–500 tichete**, generate pe mai multe servicii (VPN, Email/Exchange, ERP, Network/Switch, Cloud Storage, Internal Portal, Print Services etc.).
+- Distribuție temporală: perioade „calme" (tichete izolate, fără corelare) alternate cu **burst-uri simulate** (5-15 tichete similare într-o fereastră scurtă, ~10-20 minute) care reprezintă incidente majore reale.
+- Formulări variate ale aceleiași probleme (parafrazări, niveluri diferite de detaliu, limbaj tehnic vs. non-tehnic), pentru a testa robustețea similarității semantice și nu doar potrivirea de cuvinte cheie.
+- Câteva „false positive" intenționate: tichete similare ca formulare, dar cu cauze diferite (ex. două probleme diferite de VPN, una de rețea și una de licențiere), pentru a testa capacitatea Assessment Agent-ului de a nu confirma orbește orice cluster.
+- Format de livrare: JSON, mimând răspunsul unui API Jira-like.
+
+### 5.3 Ce necesită retrieval (RAG) și de ce
+
+RAG este folosit acolo unde decizia sau textul generat trebuie **fundamentate pe context organizațional real**, nu doar pe cunoștințe generale ale LLM-ului:
+
+| Ce se recuperează | Colecție ChromaDB | Folosit de | Scop |
+|---|---|---|---|
+| Incidente majore istorice similare (post-mortem-uri) | `historical_major_incidents` | Assessment Agent | Fundamentează decizia „e plauzibil un Major Incident?" cu precedente reale; permite citare ("similar cu MAJ-2025-0117") |
+| Runbook-uri / criterii de severitate per serviciu | `runbooks` | Assessment Agent | Ajută la estimarea severității (SEV1/2/3) conform criteriilor organizației, nu doar „impresia" LLM-ului |
+| Template-uri de comunicare (user-facing / management-facing) | `communication_templates` | Communication Agent | Asigură structură și ton consistent, aliniat cu standardele organizației |
+
+### 5.4 Mock API — format Jira-like
+
+Pentru simularea sursei de tichete se expune un endpoint mock care imită formatul răspunsului Jira REST API (`/rest/api/2/search`), astfel încât integrarea reală ulterioară (out-of-scope acum) să fie cât mai apropiată de un caz real:
+
+```json
+{
+  "total": 4,
+  "issues": [
+    {
+      "key": "INC-10234",
+      "fields": {
+        "summary": "Cannot access corporate VPN",
+        "description": "Unable to connect to VPN since 9am...",
+        "created": "2026-08-19T09:12:00.000+0200",
+        "priority": { "name": "P2 - High" },
+        "status": { "name": "Open" },
+        "components": [{ "name": "VPN Gateway" }],
+        "reporter": { "name": "user_412" }
+      }
+    }
+  ]
+}
+```
+
+Notă: se folosește un singur format (Jira-like) ca implementare de referință pentru demo; structura de mapping (`AdapterInterface: fetch_tickets() -> List[Ticket]`) e gândită astfel încât adăugarea altor formate (ServiceNow `sys_id`/`sc_task`, GLPI, Confluence pentru knowledge base) să însemne doar un nou adapter, fără schimbări în restul pipeline-ului.
+
+### 5.5 Evaluare RAG cu RAGAS
+
+Pentru a valida calitatea retrieval-ului (nu doar a generării), se propun următoarele metrici RAGAS, calculate pe un set de întrebări/query-uri de test (ex. cluster-uri cunoscute → ce ar trebui recuperat):
+
+| Metrică RAGAS | Ce măsoară | Aplicat pe |
+|---|---|---|
+| **Context Precision** | Cât de relevante sunt documentele recuperate față de query | Assessment Agent, Communication Agent |
+| **Context Recall** | Dacă documentele relevante existente au fost efectiv recuperate | Assessment Agent |
+| **Faithfulness** | Dacă output-ul LLM-ului este fundamentat pe contextul recuperat (nu halucinat) | Assessment + Communication |
+| **Answer Relevancy** | Dacă răspunsul generat răspunde efectiv la scopul query-ului | Communication Agent |
+
+Rezultatele RAGAS sunt logate în Arize Phoenix, alături de trace-ul complet al apelului, pentru a putea corela o scădere de faithfulness cu un caz concret de assessment.
+
 ## 6. Reasoning / Decizie / Execuție
 ## 7. KPI-uri și Success Criteria
 ## 8. Observabilitate și audit
