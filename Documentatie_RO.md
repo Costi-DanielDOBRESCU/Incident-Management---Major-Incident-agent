@@ -467,11 +467,187 @@ Principiul central: **LLM-ul propune, tool-urile deterministe execută**. Niciun
 
 <img src="diagram_incident_decision_flow.png" alt="Incident Decision Flow" width="85%">
 
+### 6.2 Modele Pydantic (contract de output structurat)
+
+```python
+from pydantic import BaseModel, Field
+from typing import Literal
+
+class IncidentAssessment(BaseModel):
+    cluster_id: str
+    is_major_incident_candidate: bool
+    confidence: float = Field(ge=0, le=1)
+    estimated_severity: Literal["SEV1", "SEV2", "SEV3", "Unknown"]
+    affected_service: str
+    reasoning: str  # motivare textuala, cu referinte la RAG
+    rag_sources: list[str]  # doc_id-uri folosite din ChromaDB
+    recommended_action: Literal["propose_major_incident", "monitor", "dismiss"]
+
+class CommunicationDraft(BaseModel):
+    incident_id: str
+    audience: Literal["end_users", "management"]
+    subject: str
+    body: str
+    rag_sources: list[str]  # template/doc_id-uri folosite
+    requires_approval: bool = True
+```
+
+Validarea Pydantic garantează că, indiferent ce „halucinează" modelul în text liber, structura de câmpuri obligatorii (severitate, sursă RAG, recomandare) este mereu prezentă și de tipul corect — altfel apelul este respins automat și retrimis / escaladat.
+
+### 6.3 Agenți identificați (nivel conceptual)
+
+La acest nivel de documentație, agenții sunt priviți conceptual (fără implementare detaliată de orchestrare, care urmează în modulul următor):
+
+- **Detection Agent** (determinist) — nu e un LLM, ci un pipeline clasic (embeddings + clustering). E tratat ca „agent" doar în sensul de componentă autonomă în flux.
+- **Assessment Agent** (LLM, reasoning) — singurul punct unde LLM-ul decide o clasificare cu impact (candidat Major Incident sau nu).
+- **Communication Agent** (LLM, reasoning) — generare de text, fără putere de decizie asupra declarării incidentului.
+- **Execution Agent** (determinist) — set de tool-uri, fără reasoning, apelate strict pe baza aprobării umane.
+- **Orchestrator** — coordonează handoff-urile și menține state-ul.
+
+### 6.4 Fluxul decizional pas cu pas
+
+1. Detection Pipeline produce un `IncidentCluster` (determinist).
+2. Assessment Agent primește clusterul + interoghează RAG → produce `IncidentAssessment` (reasoning, structurat).
+3. Dacă `is_major_incident_candidate = true` și `confidence` peste pragul definit → propunere trimisă la Incident Manager.
+4. Incident Manager aprobă/respinge (human-in-the-loop, obligatoriu).
+5. Dacă aprobat → Communication Agent generează `CommunicationDraft` pentru fiecare audiență (reasoning, structurat).
+6. Incident Manager aprobă/editează draftul (al doilea punct human-in-the-loop).
+7. Execution Layer execută acțiunile aprobate (determinist): `send_notification`, `update_ticket_status`, `link_tickets_to_parent`.
+8. Toate pasurile sunt logate (Arize Phoenix + audit log).
+
+### 6.5 Praguri (thresholds) pentru human-in-the-loop
+
+| Prag | Valoare de pornire (configurabilă) | Justificare |
+|---|---|---|
+| Similaritate minimă pentru corelare (cosine) | ≥ 0.75 | Sub acest prag, riscul de fals-pozitiv (tichete diferite, formulare asemănătoare) crește semnificativ |
+| Nr. minim de tichete pentru cluster candidat | ≥ 3 tichete în fereastra de timp | Un singur tichet nu justifică suspiciunea de incident major |
+| Confidence minimă Assessment Agent pentru propunere | ≥ 0.6 | Sub acest prag, clusterul e doar „monitorizat", nu propus explicit — evită supra-alertarea Incident Managerului |
+| Aprobare umană obligatorie | Întotdeauna, indiferent de confidence | Declararea oficială și orice comunicare externă rămân decizii cu impact organizațional/reputațional — nu se automatizează integral |
 
 ## 7. KPI-uri și Success Criteria
+
+Scopul KPI-urilor este să arate, măsurabil, dacă fluxul agentic performează mai bine decât procesul manual — comparație **baseline manual vs. agentic**, pe același set de date mock.
+
+| # | KPI | Definiție | Cum se măsoară |
+|---|---|---|---|
+| 1 | **MTTR simulat** (Mean Time to Repair) | Timp de la primul tichet dintr-un cluster real până la declararea Major Incident + comunicare trimisă | Timestamp primul tichet → timestamp `CommunicationSent`, comparat cu timpul mediu istoric estimat pentru identificare manuală pe date similare |
+| 2 | **Time to Detect (TTD)** | Timp de la apariția burst-ului până la propunerea de Major Incident generată de Assessment Agent | Timestamp cluster format → timestamp `ProposedMajor` |
+| 3 | **% intervenție umană** | Proporția pașilor din flux care necesită acțiune umană explicită vs. total pași automatizați | (Nr. aprobări umane) / (Nr. total pași de flux), pe eșantionul de incidente simulate |
+| 4 | **Acuratețe clasificare cluster** | Cât de bine identifică Assessment Agent-ul clusterele reale de Major Incident vs. cele „false positive" introduse deliberat în mock data | Precision / Recall / F1, comparând `is_major_incident_candidate` cu eticheta „ground truth" din datele mock |
+| 5 | **Rata tichetelor duplicate evitate** | Nr. tichete corect legate la incidentul-părinte (deci nemaifiind tratate ca incidente separate) | (Tichete link-uite corect) / (Tichete din cluster real) |
+
+### 7.1 Comparație baseline manual vs. agentic
+
+| Dimensiune | Baseline manual (estimat din procesul AS-IS) | Țintă agentic (MIA) |
+|---|---|---|
+| Timp identificare candidat Major Incident | Minute–ore (dependent de observația operatorului) | Sub fereastra de detecție configurată (ex. ≤ 15-20 min) |
+| Consistență comunicare | Variabilă, în funcție de persoană | Structură fixă, generată pe template + RAG |
+| Trasabilitate decizie | Parțială, distribuită în mai multe sisteme | Completă, centralizată (audit + Arize Phoenix) |
+
 ## 8. Observabilitate și audit
+
+### 8.1 Ce trebuie trasat (traced)
+
+Fiecare pas al fluxului este instrumentat prin Arize Phoenix (bazat pe OpenTelemetry), astfel încât să răspundă mereu la întrebările: **ce a decis agentul, pe ce bază, cine a aprobat, ce s-a executat**.
+
+| Pas | Ce se loghează |
+|---|---|
+| Ingestion | Tichete preluate, sursă, timestamp fetch |
+| Clustering | Parametri clustering, tichete incluse, scor de similaritate al centroidului |
+| Assessment Agent | Prompt complet, model folosit, `rag_sources` interogate, output `IncidentAssessment`, confidence, latență |
+| RAG retrieval | Query, colecție interogată, documente returnate + scoruri de relevanță |
+| Decizie umană | Cine a aprobat/respins, timestamp, motiv (dacă respins) |
+| Communication Agent | Prompt, model, `rag_sources`, output `CommunicationDraft`, audiență |
+| Decizie umană (comunicare) | Aprobat / editat (cu diff față de draft) / respins |
+| Execuție | Tool apelat, parametri, rezultat, timestamp |
+
+### 8.2 Audit trail
+
+Pe lângă trace-urile tehnice (utile pentru debugging și evaluare RAGAS), se menține un **audit log** orientat pe conformitate/guvernanță, cu structură simplă și interogabilă:
+
+```json
+{
+  "event_id": "evt_88213",
+  "timestamp": "2026-08-19T09:22:05Z",
+  "actor": "incident_manager_07",
+  "action": "approve_major_incident",
+  "incident_id": "MAJ-2026-0043",
+  "based_on": {
+    "assessment_id": "AS-0043",
+    "confidence": 0.82,
+    "rag_sources": ["PM-2025-0117", "RB-VPN-002"]
+  }
+}
+```
+
+### 8.3 Metrici de observabilitate
+
+- Latență per etapă (embeddings, clustering, apel LLM, retrieval RAG, execuție tool).
+- Scoruri RAGAS (faithfulness, context precision/recall) per apel Assessment/Communication.
+- Rata de respingere umană a propunerilor.
+- Nr. tokeni / cost per rulare (relevant chiar și pe free tier, pentru a evita rate-limiting).
+
 ## 9. Stack tehnic și livrarea ca produs
+### 9.1 Componente tehnice
+
+| Layer | Tehnologie |
+|---|---|
+| LLM (reasoning) | Ollama local (ex. `llama3.1:8b`) sau Groq API free tier (ex. `llama-3.1-8b-instant`) |
+| Embeddings | Ollama (`nomic-embed-text`) sau `sentence-transformers` (open-source, local) |
+| Clustering | `scikit-learn` (DBSCAN/HDBSCAN) pe similaritate cosinus |
+| Output structurat | Pydantic (+ `instructor` sau function-calling nativ, în funcție de provider) |
+| Vector DB / RAG | ChromaDB |
+| Evaluare RAG | RAGAS |
+| Backend / API | FastAPI |
+| UI | Streamlit |
+| Observabilitate | Arize Phoenix (OpenTelemetry) |
+| Containerizare | Docker + docker-compose |
+| Mock ITSM API | FastAPI endpoint, format Jira REST-like |
+
+### 9.2 Arhitectură de livrare (deployment)
+
+<img src="diagram_deploy.png" alt="Diagram Deploy" width="85%">
+
+Toate componentele proprii (API, UI, mock Jira, ChromaDB, Phoenix) rulează în containere separate, orchestrate prin `docker-compose`, pentru un demo end-to-end reproductibil local, cu zero costuri (modelele LLM fiind fie locale prin Ollama, fie pe tier-ul gratuit Groq).
+
+### 9.3 Ce oferă UI-ul (Streamlit)
+
+- Vizualizare tichete în timp real (mock feed).
+- Vizualizare clustere detectate + scor de similaritate.
+- Ecran de aprobare pentru Incident Manager (propunere Major Incident + draft comunicare), cu opțiune de editare.
+- Dashboard KPI (MTTR simulat, % intervenție umană, acuratețe clasificare).
+- Link către trace-urile Arize Phoenix pentru fiecare decizie (drill-down pe "de ce a decis agentul așa").
+
+
 ## 10. Riscuri, limitări și dezvoltări viitoare
+
+### 10.1 Riscuri
+
+| Risc | Impact | Mitigare |
+|---|---|---|
+| Fals pozitive la clustering (tichete diferite, formulare similară) | Propuneri de Major Incident nejustificate | Prag minim de similaritate + nr. minim de tichete; date mock includ cazuri „capcană" pentru testare |
+| Fals negative (tichete reale ale aceluiași incident, formulate foarte diferit) | Incident major nedetectat / detectat târziu | Fereastră de timp configurabilă + posibilitate de recalculare periodică a clusterelor |
+| Halucinație LLM în Assessment/Communication | Decizie/comunicare nefundamentată | Output validat Pydantic + `rag_sources` obligatorii + evaluare RAGAS (faithfulness) + aprobare umană obligatorie |
+| Latență / rate limits pe Groq free tier | Întârzieri în demo, eșecuri de apel | Fallback pe Ollama local; retry cu backoff; caching pe query-uri RAG repetate |
+| Calitate slabă a embeddings pe text foarte scurt | Clustering imprecis | Normalizare text tichete (summary + description concatenate) înainte de embedding |
+
+### 10.2 Limitări curente
+
+- Date mock, nu integrare live cu un ITSM real de producție.
+- O singură limbă de comunicare (EN implicit), fără traducere automată.
+- Un singur format sursă implementat integral (Jira-like); alte formate (ServiceNow, etc) rămân la nivel de design de adapter.
+- Fără remediere tehnică efectivă — agentul detectează, evaluează, comunică, dar nu acționează asupra infrastructurii.
+
+### 10.3 Dezvoltări viitoare
+
+- Integrare reală cu un ITSM de producție (conector live, nu mock).
+- Suport multi-limbă pentru comunicare.
+- Fine-tuning al modelului de assessment pe date istorice reale ale organizației, pentru acuratețe superioară față de few-shot.
+- Predicție proactivă (anomaly/capacity forecasting), nu doar reacție la tichete existente.
+- Integrare ChatOps (Slack/Teams) pentru notificări și aprobări direct din canalele echipei.
+- Suport multi-tenant / multi-organizație.
+
+
 ## 11. Anexe
 
 ---
