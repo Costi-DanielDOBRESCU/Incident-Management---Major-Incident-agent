@@ -460,6 +460,14 @@ Pentru a valida calitatea retrieval-ului (nu doar a generării), se propun urmă
 Rezultatele RAGAS sunt logate în Arize Phoenix, alături de trace-ul complet al apelului, pentru a putea corela o scădere de faithfulness cu un caz concret de assessment.
 
 ## 6. Reasoning / Decizie / Execuție
+
+### 6.1 Separarea reasoning / execuție
+
+Principiul central: **LLM-ul propune, tool-urile deterministe execută**. Niciun agent LLM nu are acces direct la acțiuni cu efect extern (trimitere notificare, update status). Output-ul LLM este întotdeauna un obiect structurat, validat cu Pydantic, iar acest obiect devine input pentru un gate de aprobare umană sau pentru un tool determinist.
+
+<img src="diagram_incident_decision_flow.png" alt="Incident Decision Flow" width="70%">
+
+
 ## 7. KPI-uri și Success Criteria
 ## 8. Observabilitate și audit
 ## 9. Stack tehnic și livrarea ca produs
