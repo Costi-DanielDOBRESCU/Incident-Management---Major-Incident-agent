@@ -325,7 +325,7 @@ Fiecare tichet și fiecare cluster/incident au un state propriu, iar trecerea î
 <img src="diagram_handoffs.png" alt="Handoff-uri între agenți" width="70%">
 
 ### 4.5 Diagramă de componente (arhitectură high-level)
-<img src="diagram_architecture.png" alt="Handoff-uri între agenți" width="70%">
+<img src="diagram_architecture.png" alt="Handoff-uri între agenți" width="85%">
 
 ### 4.6 Diagramă de secvență (flux end-to-end)
 
