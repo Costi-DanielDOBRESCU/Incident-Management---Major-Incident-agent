@@ -322,7 +322,7 @@ Arhitectura pentru Major Incident Agent este construită pe câteva principii ca
 
 Fiecare tichet și fiecare cluster/incident au un state propriu, iar trecerea între stări reprezintă un handoff explicit între componente:
 
-<img src="diagram_handoffs2.png" alt="Handoff-uri între agenți" width="90%">
+<img src="diagram_handoffs.png" alt="Handoff-uri între agenți" width="70%">
 
 ### 4.5 Diagramă de componente (arhitectură high-level)
 
