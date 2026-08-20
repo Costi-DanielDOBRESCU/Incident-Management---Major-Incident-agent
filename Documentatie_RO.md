@@ -280,9 +280,56 @@ După rezolvarea incidentului, poate fi propusă comunicarea de închidere, care
 | Decizie finală | 100% umană | Umană, dar asistată de propunere structurată (human-in-the-loop) |
 | Trasabilitate | Fragmentată, în mai multe sisteme | Centralizată (audit trail + observabilitate) |
 
-### 3.4 Exemplu de scenariu end-to-end (de la input la output)
+## 4. Arhitectura generală a sistemului
+### 4.1 Principii de arhitectură
 
-Această secțiune prezintă fluxul TO-BE descris mai sus, urmărind pas cu pas ce se întâmplă cu un set real de tichete — de la ingestion, până la comunicarea finală trimisă. Entitățile folosite (`Ticket`, `IncidentCluster`, `IncidentAssessment`, `CommunicationDraft`, `MajorIncident`, `AuditLogEntry`) sunt aceleași ca în Secțiunea 5, iar tool-urile apelate sunt cele din Secțiunea 4.3.
+Arhitectura pentru Major Incident Agent este construită pe câteva principii care se aplică la nivelul întregului sistem:
+
+1. **Separare reasoning / execuție** – componentele care „gândesc" (LLM) nu ating niciodată direct un sistem extern; ele produc doar propuneri structurate (JSON validat Pydantic). Componentele care „acționează" sunt tool-uri deterministe, apelate doar după validare/aprobare.
+2. **Human-in-the-loop pe punctele riscante** – orice acțiune vizibilă extern (comunicare trimisă, incident declarat oficial) trece printr-un gate de aprobare umană.
+3. **Trasabilitate completă** – fiecare pas (input, prompt, output LLM, sursă RAG, decizie umană, acțiune executată) este logat și expus prin observabilitate.
+4. **Componente înlocuibile** – detectarea (embeddings/clustering), reasoning-ul (LLM) și execuția (tool-uri) sunt module separate, ce pot fi înlocuite/actualizate independent (ex. schimbarea providerului LLM din Ollama în Groq nu afectează restul sistemului).
+
+### 4.2 Roluri de agenți
+
+| Agent / Componentă | Tip | Responsabilitate | Output |
+|---|---|---|---|
+| **Ticket Ingestion Service** | Determinist (tool) | Preia tichetele din sursa mock (Jira-like API) | Listă tichete (JSON) |
+| **Detection Pipeline** | Determinist (embeddings + clustering) | Calculează embeddings pe descrierea tichetelor, aplică clustering pe cosine similarity într-o fereastră de timp | Clustere candidate de tichete similare |
+| **Assessment Agent (LLM)** | Reasoning | Analizează un cluster candidat + context RAG, decide dacă e plauzibil un Major Incident, estimează severitate, motivează | `IncidentAssessment` (Pydantic) |
+| **Communication Agent (LLM)** | Reasoning | Generează draft de comunicare (user-facing + management-facing), pe baza template-urilor și a contextului RAG | `CommunicationDraft` (Pydantic) |
+| **Approval Gateway** | Human-in-the-loop | Incident Manager validează/respinge propunerea de Major Incident și draftul de comunicare | Decizie (approve/reject/edit) |
+| **Execution Layer** | Determinist (tool-uri) | Execută acțiunile aprobate: trimite notificare, actualizează status tichete, leagă tichete la incidentul părinte | Confirmare execuție |
+| **Observability Layer** | Infrastructură | Trace-uiește fiecare pas al fluxului (Arize Phoenix) și menține audit trail | Trace-uri + audit log |
+| **Orchestrator** | Coordonator | Coordonează handoff-urile între componente, menține state-ul fluxului | State transitions |
+
+### 4.3 Tool-uri (function-calling / deterministice)
+
+| Tool | Rol | Apelat de |
+|---|---|---|
+| `fetch_tickets(since, limit)` | Interoghează mock API-ul Jira-like, returnează tichete noi | Orchestrator / Ingestion Service |
+| `compute_embeddings(texts)` | Generează embeddings pentru descrierile tichetelor | Detection Pipeline |
+| `cluster_tickets(embeddings, threshold)` | Clustering pe cosine similarity (ex. HDBSCAN/DBSCAN) | Detection Pipeline |
+| `query_knowledge_base(query, collection)` | Interoghează ChromaDB (RAG) pentru incidente istorice / runbook-uri / template-uri | Assessment Agent, Communication Agent |
+| `generate_assessment(cluster, rag_context)` | Apel LLM cu output structurat (Pydantic) | Assessment Agent |
+| `generate_communication(incident, rag_context, audience)` | Apel LLM cu output structurat (Pydantic) | Communication Agent |
+| `send_notification(channel, audience, content)` | Trimite comunicarea (simulat: email/Slack mock) | Execution Layer, doar după aprobare |
+| `update_ticket_status(ticket_ids, status)` | Actualizează statusul tichetelor asociate | Execution Layer, doar după aprobare |
+| `link_tickets_to_parent(ticket_ids, parent_incident_id)` | Leagă tichetele individuale de incidentul-părinte | Execution Layer, doar după aprobare |
+| `log_audit_event(actor, action, payload)` | Scrie o intrare de audit (cine, ce, când, pe ce bază) | Toate componentele |
+
+### 4.4 Handoff-uri între agenți (state machine)
+
+Fiecare tichet și fiecare cluster/incident au un state propriu, iar trecerea între stări reprezintă un handoff explicit între componente:
+
+<img src="diagram_handoffs.png" alt="Handoff-uri între agenți" width="70%">
+
+### 4.5 Diagramă de componente (arhitectură high-level)
+<img src="diagram_architecture.png" alt="Handoff-uri între agenți" width="85%">
+
+### 4.6 Diagramă de secvență (flux end-to-end)
+
+<img src="diagram_end_to_end.png" alt="End to end" width="75%">
 
 **Premisa scenariului:** între 09:00 și 09:15, mock-ul Jira-like primește 5 tichete noi legate (aparent) de VPN. Patru dintre ele descriu, cu formulări diferite, aceeași problemă reală (autentificare VPN indisponibilă); al cincilea menționează tot „VPN", dar are o cauză complet diferită (licențiere), fiind inclus intenționat ca „test de fals pozitiv".
 
@@ -380,58 +427,6 @@ Se scrie audit log (`approve_major_incident`).
 **Pas 10 — Execuție (determinist).** Execution Layer apelează, în ordine: `send_notification()` pentru fiecare audiență, `update_ticket_status(["INC-10234","INC-10235","INC-10238","INC-10241"], "Linked-MajorIncident")` și `link_tickets_to_parent([...], "MAJ-2026-0043")`. INC-10239 rămâne neafectat de aceste acțiuni, ca tichet individual.
 
 **Pas 11 — Observabilitate.** Toți pașii de mai sus sunt trace-uiți în Arize Phoenix (prompt-uri, model, latențe, scoruri RAGAS pe apelurile de retrieval) și scrise în audit log, oferind trasabilitate completă de la cele 5 tichete de input până la incidentul declarat, comunicările trimise și tichetele legate.
-
-<img src="diagram_end_to_end.png" alt="End to end" width="85%">
-
-## 4. Arhitectura generală a sistemului
-### 4.1 Principii de arhitectură
-
-Arhitectura pentru Major Incident Agent este construită pe câteva principii care se aplică la nivelul întregului sistem:
-
-1. **Separare reasoning / execuție** – componentele care „gândesc" (LLM) nu ating niciodată direct un sistem extern; ele produc doar propuneri structurate (JSON validat Pydantic). Componentele care „acționează" sunt tool-uri deterministe, apelate doar după validare/aprobare.
-2. **Human-in-the-loop pe punctele riscante** – orice acțiune vizibilă extern (comunicare trimisă, incident declarat oficial) trece printr-un gate de aprobare umană.
-3. **Trasabilitate completă** – fiecare pas (input, prompt, output LLM, sursă RAG, decizie umană, acțiune executată) este logat și expus prin observabilitate.
-4. **Componente înlocuibile** – detectarea (embeddings/clustering), reasoning-ul (LLM) și execuția (tool-uri) sunt module separate, ce pot fi înlocuite/actualizate independent (ex. schimbarea providerului LLM din Ollama în Groq nu afectează restul sistemului).
-
-### 4.2 Roluri de agenți
-
-| Agent / Componentă | Tip | Responsabilitate | Output |
-|---|---|---|---|
-| **Ticket Ingestion Service** | Determinist (tool) | Preia tichetele din sursa mock (Jira-like API) | Listă tichete (JSON) |
-| **Detection Pipeline** | Determinist (embeddings + clustering) | Calculează embeddings pe descrierea tichetelor, aplică clustering pe cosine similarity într-o fereastră de timp | Clustere candidate de tichete similare |
-| **Assessment Agent (LLM)** | Reasoning | Analizează un cluster candidat + context RAG, decide dacă e plauzibil un Major Incident, estimează severitate, motivează | `IncidentAssessment` (Pydantic) |
-| **Communication Agent (LLM)** | Reasoning | Generează draft de comunicare (user-facing + management-facing), pe baza template-urilor și a contextului RAG | `CommunicationDraft` (Pydantic) |
-| **Approval Gateway** | Human-in-the-loop | Incident Manager validează/respinge propunerea de Major Incident și draftul de comunicare | Decizie (approve/reject/edit) |
-| **Execution Layer** | Determinist (tool-uri) | Execută acțiunile aprobate: trimite notificare, actualizează status tichete, leagă tichete la incidentul părinte | Confirmare execuție |
-| **Observability Layer** | Infrastructură | Trace-uiește fiecare pas al fluxului (Arize Phoenix) și menține audit trail | Trace-uri + audit log |
-| **Orchestrator** | Coordonator | Coordonează handoff-urile între componente, menține state-ul fluxului | State transitions |
-
-### 4.3 Tool-uri (function-calling / deterministice)
-
-| Tool | Rol | Apelat de |
-|---|---|---|
-| `fetch_tickets(since, limit)` | Interoghează mock API-ul Jira-like, returnează tichete noi | Orchestrator / Ingestion Service |
-| `compute_embeddings(texts)` | Generează embeddings pentru descrierile tichetelor | Detection Pipeline |
-| `cluster_tickets(embeddings, threshold)` | Clustering pe cosine similarity (ex. HDBSCAN/DBSCAN) | Detection Pipeline |
-| `query_knowledge_base(query, collection)` | Interoghează ChromaDB (RAG) pentru incidente istorice / runbook-uri / template-uri | Assessment Agent, Communication Agent |
-| `generate_assessment(cluster, rag_context)` | Apel LLM cu output structurat (Pydantic) | Assessment Agent |
-| `generate_communication(incident, rag_context, audience)` | Apel LLM cu output structurat (Pydantic) | Communication Agent |
-| `send_notification(channel, audience, content)` | Trimite comunicarea (simulat: email/Slack mock) | Execution Layer, doar după aprobare |
-| `update_ticket_status(ticket_ids, status)` | Actualizează statusul tichetelor asociate | Execution Layer, doar după aprobare |
-| `link_tickets_to_parent(ticket_ids, parent_incident_id)` | Leagă tichetele individuale de incidentul-părinte | Execution Layer, doar după aprobare |
-| `log_audit_event(actor, action, payload)` | Scrie o intrare de audit (cine, ce, când, pe ce bază) | Toate componentele |
-
-### 4.4 Handoff-uri între agenți (state machine)
-
-Fiecare tichet și fiecare cluster/incident au un state propriu, iar trecerea între stări reprezintă un handoff explicit între componente:
-
-<img src="diagram_handoffs.png" alt="Handoff-uri între agenți" width="70%">
-
-### 4.5 Diagramă de componente (arhitectură high-level)
-<img src="diagram_architecture.png" alt="Handoff-uri între agenți" width="85%">
-
-### 4.6 Diagramă de secvență (flux end-to-end)
-TBD
 
 ## 5. Structura datelor și abordarea RAG
 
