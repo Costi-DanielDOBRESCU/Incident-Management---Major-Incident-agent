@@ -280,6 +280,118 @@ După rezolvarea incidentului, poate fi propusă comunicarea de închidere, care
 | Decizie finală | 100% umană | Umană, dar asistată de propunere structurată (human-in-the-loop) |
 | Trasabilitate | Fragmentată, în mai multe sisteme | Centralizată (audit trail + observabilitate) |
 
+### 3.4 Exemplu de scenariu end-to-end (de la input la output)
+
+Această secțiune prezintă fluxul TO-BE descris mai sus, urmărind pas cu pas ce se întâmplă cu un set real de tichete — de la ingestion, până la comunicarea finală trimisă. Entitățile folosite (`Ticket`, `IncidentCluster`, `IncidentAssessment`, `CommunicationDraft`, `MajorIncident`, `AuditLogEntry`) sunt aceleași ca în Secțiunea 5, iar tool-urile apelate sunt cele din Secțiunea 4.3.
+
+**Premisa scenariului:** între 09:00 și 09:15, mock-ul Jira-like primește 5 tichete noi legate (aparent) de VPN. Patru dintre ele descriu, cu formulări diferite, aceeași problemă reală (autentificare VPN indisponibilă); al cincilea menționează tot „VPN", dar are o cauză complet diferită (licențiere), fiind inclus intenționat ca „test de fals pozitiv".
+
+| Ticket | Summary | Cauză reală |
+|---|---|---|
+| INC-10234 | Cannot access corporate VPN | Autentificare VPN |
+| INC-10235 | VPN connection failing | Autentificare VPN |
+| INC-10238 | Remote employees cannot connect to VPN | Autentificare VPN |
+| INC-10241 | VPN authentication unavailable | Autentificare VPN |
+| INC-10239 | Unable to activate VPN license on new laptop | Licențiere (cauză diferită) |
+
+**Pas 1 — Ingestion (determinist).** Orchestratorul apelează `fetch_tickets(since="2026-08-19T09:00:00Z", limit=50)`. Mock API-ul răspunde în format Jira-like cu cele 5 tichete de mai sus (plus, eventual, alte tichete nelegate, ignorate în acest exemplu).
+
+**Pas 2 — Normalizare + embeddings (determinist).** Pentru fiecare tichet, `summary` + `description` sunt concatenate și trimise la `compute_embeddings(texts)`, rezultând câte un vector pentru fiecare din cele 5 tichete.
+
+**Pas 3 — Clustering (determinist).** `cluster_tickets(embeddings, threshold=0.75)` calculează similaritatea cosinus între vectori. Cele 4 tichete despre autentificare formează un cluster cu similaritate de centroid 0.87 (peste pragul de 0.75 și peste minimul de 3 tichete), deci devin candidate:
+
+```json
+{
+  "cluster_id": "CL-2026-0819-004",
+  "ticket_ids": ["INC-10234", "INC-10235", "INC-10238", "INC-10241"],
+  "centroid_similarity": 0.87,
+  "service_guess": "VPN Gateway",
+  "window_start": "2026-08-19T09:00:00Z",
+  "window_end": "2026-08-19T09:15:00Z",
+  "ticket_count": 4
+}
+```
+
+INC-10239 (licențiere) are o similaritate de doar ~0.42 față de centroid — rămâne sub prag, nu intră în cluster și continuă pe fluxul standard (non-major).
+
+**Pas 4 — Retrieval RAG pentru evaluare.** Assessment Agent-ul apelează `query_knowledge_base()` pe două colecții din ChromaDB: `historical_major_incidents` (returnează `PM-2025-0117` — incident VPN cauzat de certificat expirat) și `runbooks` (returnează `RB-VPN-002` — criterii de severitate pentru serviciul VPN).
+
+**Pas 5 — Assessment Agent (LLM, reasoning).** Pe baza clusterului + contextului RAG, `generate_assessment()` produce un obiect `IncidentAssessment` validat Pydantic:
+
+```json
+{
+  "cluster_id": "CL-2026-0819-004",
+  "is_major_incident_candidate": true,
+  "confidence": 0.82,
+  "estimated_severity": "SEV2",
+  "affected_service": "VPN Gateway",
+  "reasoning": "4 tichete în 15 min, aceeași simptomatică (auth timeout), similar cu PM-2025-0117; conform RB-VPN-002 impactul multi-utilizator justifică SEV2.",
+  "rag_sources": ["PM-2025-0117", "RB-VPN-002"],
+  "recommended_action": "propose_major_incident"
+}
+```
+
+Confidence-ul (0.82) depășește pragul de 0.6, deci propunerea este trimisă mai departe. Pasul este logat (`log_audit_event`, actor `assessment_agent`, acțiune `propose_major_incident`).
+
+**Pas 6 — Aprobare Incident Manager (human-in-the-loop #1).** Propunerea apare în UI-ul Streamlit, cu motivarea și sursele RAG afișate. Incident Manager-ul aprobă. Se creează:
+
+```json
+{
+  "incident_id": "MAJ-2026-0043",
+  "cluster_id": "CL-2026-0819-004",
+  "status": "Declared",
+  "severity": "SEV2",
+  "declared_by": "incident_manager_07",
+  "declared_at": "2026-08-19T09:22:00Z",
+  "root_cause_suspected": "VPN authentication service degradation"
+}
+```
+
+Se scrie audit log (`approve_major_incident`).
+
+**Pas 7 — Retrieval RAG pentru comunicare.** Communication Agent-ul interoghează colecția `communication_templates` (query de tipul „VPN outage communication template"), pentru fiecare audiență.
+
+**Pas 8 — Communication Agent (LLM, reasoning).** `generate_communication()` este apelat de două ori (o dată per audiență), producând câte un `CommunicationDraft`:
+
+```json
+{
+  "incident_id": "MAJ-2026-0043",
+  "audience": "end_users",
+  "subject": "[Major Incident] VPN access issues – investigating",
+  "body": "We are aware that some users are unable to authenticate to the corporate VPN since ~09:00. Our team is investigating. Next update by 10:00.",
+  "rag_sources": ["TPL-COMM-USER-001"],
+  "requires_approval": true
+}
+```
+
+```json
+{
+  "incident_id": "MAJ-2026-0043",
+  "audience": "management",
+  "subject": "MAJ-2026-0043 (SEV2) – VPN Gateway authentication degradation",
+  "body": "4 correlated tickets in 15 min, suspected cause: auth service degradation, similar to PM-2025-0117. Approved and being tracked. ETA next update: 10:00.",
+  "rag_sources": ["TPL-COMM-MGMT-001", "PM-2025-0117"],
+  "requires_approval": true
+}
+```
+
+**Pas 9 — Aprobare comunicare (human-in-the-loop #2).** Incident Manager-ul aprobă (eventual editează) ambele draft-uri din UI.
+
+**Pas 10 — Execuție (determinist).** Execution Layer apelează, în ordine: `send_notification()` pentru fiecare audiență, `update_ticket_status(["INC-10234","INC-10235","INC-10238","INC-10241"], "Linked-MajorIncident")` și `link_tickets_to_parent([...], "MAJ-2026-0043")`. INC-10239 rămâne neafectat de aceste acțiuni, ca tichet individual.
+
+**Pas 11 — Observabilitate.** Toți pașii de mai sus sunt trace-uiți în Arize Phoenix (prompt-uri, model, latențe, scoruri RAGAS pe apelurile de retrieval) și scrise în audit log, oferind trasabilitate completă de la cele 5 tichete de input până la incidentul declarat, comunicările trimise și tichetele legate.
+
+**Rezumat input → output:**
+
+| Input | Output |
+|---|---|
+| 5 tichete noi (09:00–09:15) | 1 `IncidentCluster` (4 tichete) + 1 tichet corect exclus (fals pozitiv) |
+| `IncidentCluster` + context RAG | 1 `IncidentAssessment` (SEV2, confidence 0.82) |
+| `IncidentAssessment` aprobat | 1 `MajorIncident` declarat (MAJ-2026-0043) |
+| `MajorIncident` + context RAG | 2 `CommunicationDraft` (end_users, management) |
+| Draft-uri aprobate | 2 notificări trimise + 4 tichete legate la incidentul-părinte |
+
+
 ## 4. Arhitectura generală a sistemului
 ### 4.1 Principii de arhitectură
 
