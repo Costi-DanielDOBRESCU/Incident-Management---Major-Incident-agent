@@ -381,16 +381,7 @@ Se scrie audit log (`approve_major_incident`).
 
 **Pas 11 — Observabilitate.** Toți pașii de mai sus sunt trace-uiți în Arize Phoenix (prompt-uri, model, latențe, scoruri RAGAS pe apelurile de retrieval) și scrise în audit log, oferind trasabilitate completă de la cele 5 tichete de input până la incidentul declarat, comunicările trimise și tichetele legate.
 
-**Rezumat input → output:**
-
-| Input | Output |
-|---|---|
-| 5 tichete noi (09:00–09:15) | 1 `IncidentCluster` (4 tichete) + 1 tichet corect exclus (fals pozitiv) |
-| `IncidentCluster` + context RAG | 1 `IncidentAssessment` (SEV2, confidence 0.82) |
-| `IncidentAssessment` aprobat | 1 `MajorIncident` declarat (MAJ-2026-0043) |
-| `MajorIncident` + context RAG | 2 `CommunicationDraft` (end_users, management) |
-| Draft-uri aprobate | 2 notificări trimise + 4 tichete legate la incidentul-părinte |
-
+<img src="diagram_end_to_end.png" alt="End to end" width="85%">
 
 ## 4. Arhitectura generală a sistemului
 ### 4.1 Principii de arhitectură
