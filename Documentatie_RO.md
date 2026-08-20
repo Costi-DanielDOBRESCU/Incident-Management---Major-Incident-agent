@@ -329,7 +329,7 @@ Fiecare tichet și fiecare cluster/incident au un state propriu, iar trecerea î
 
 ### 4.6 Diagramă de secvență (flux end-to-end)
 
-<img src="diagram_end_to_end.png" alt="End to end" width="75%">
+<img src="diagram_end_to_end.png" alt="End to end" width="60%">
 
 **Premisa scenariului:** între 09:00 și 09:15, mock-ul Jira-like primește 5 tichete noi legate (aparent) de VPN. Patru dintre ele descriu, cu formulări diferite, aceeași problemă reală (autentificare VPN indisponibilă); al cincilea menționează tot „VPN", dar are o cauză complet diferită (licențiere), fiind inclus intenționat ca „test de fals pozitiv".
 
