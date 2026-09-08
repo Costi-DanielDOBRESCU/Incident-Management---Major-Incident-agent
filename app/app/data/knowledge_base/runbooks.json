@@ -1,0 +1,86 @@
+[
+  {
+    "doc_id": "RB-VPN-002",
+    "type": "runbook",
+    "service": "VPN Gateway",
+    "summary": "Severity criteria for VPN Gateway incidents",
+    "content": "SEV1: Total VPN outage, all users affected, >30 min. SEV2: Partial outage or authentication degradation affecting multiple users (3+) within a 20-minute window. SEV3: Isolated single-user VPN issue (licensing, local config). Multi-user impact within a short window is the primary signal for SEV2+.",
+    "tags": [
+      "vpn",
+      "severity",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-EXCH-001",
+    "type": "runbook",
+    "service": "Email/Exchange",
+    "summary": "Severity criteria for Exchange/Email incidents",
+    "content": "SEV1: Full mail service outage (send+receive) org-wide. SEV2: Mailbox access issues affecting 3+ users within 15 minutes, or delayed mail delivery org-wide. SEV3: Individual mailbox issues, spam filter false positives.",
+    "tags": [
+      "exchange",
+      "severity",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-ERP-003",
+    "type": "runbook",
+    "service": "ERP System",
+    "summary": "Severity criteria for ERP incidents",
+    "content": "SEV1: ERP fully unavailable, blocking business transactions org-wide. SEV2: Degraded performance or intermittent errors affecting 3+ users within a short window. SEV3: Single-user or single-module issue.",
+    "tags": [
+      "erp",
+      "severity",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-NET-004",
+    "type": "runbook",
+    "service": "Network/Switch",
+    "summary": "Severity criteria for Network/Switch incidents",
+    "content": "SEV1: Full site network outage. SEV2: Partial network degradation affecting a floor or department, 3+ correlated reports within 20 minutes. SEV3: Single connection issue.",
+    "tags": [
+      "network",
+      "severity",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-CLOUD-005",
+    "type": "runbook",
+    "service": "Cloud Storage",
+    "summary": "Severity criteria for Cloud Storage incidents",
+    "content": "SEV1: Complete sync/upload outage org-wide. SEV2: Degraded sync affecting multiple users/teams within a short window. SEV3: Individual quota or permission issue.",
+    "tags": [
+      "cloud-storage",
+      "severity",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-PORTAL-006",
+    "type": "runbook",
+    "service": "Internal Portal",
+    "summary": "Severity criteria for Internal Portal incidents",
+    "content": "SEV1: Portal fully inaccessible org-wide (SSO down). SEV2: Login issues affecting 3+ users within 15 minutes. SEV3: Cosmetic or single-user issue.",
+    "tags": [
+      "portal",
+      "severity",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-PRINT-007",
+    "type": "runbook",
+    "service": "Print Services",
+    "summary": "Severity criteria for Print Services incidents",
+    "content": "SEV1: All printers on all floors down. SEV2: All printers on a floor/department down, 3+ correlated reports. SEV3: Single printer or single-user driver issue.",
+    "tags": [
+      "print",
+      "severity",
+      "runbook"
+    ]
+  }
+]

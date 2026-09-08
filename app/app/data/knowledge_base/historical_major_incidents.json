@@ -1,0 +1,86 @@
+[
+  {
+    "doc_id": "PM-2025-0117",
+    "type": "post_mortem",
+    "service": "VPN Gateway",
+    "summary": "VPN outage caused by expired auth certificate",
+    "content": "On 2025-11-14, the VPN authentication certificate expired unexpectedly, causing all authentication attempts to fail for approximately 3 hours. Root cause: certificate renewal automation had silently failed 30 days prior. Resolution: certificate manually renewed, monitoring alert added for certificate expiry (30/14/7 day warnings). 45 tickets were raised in a 20-minute window before declaration.",
+    "tags": [
+      "vpn",
+      "authentication",
+      "certificate"
+    ]
+  },
+  {
+    "doc_id": "PM-2025-0089",
+    "type": "post_mortem",
+    "service": "Email/Exchange",
+    "summary": "Exchange outage due to database corruption after failed patch",
+    "content": "A failed cumulative update left the Exchange mailbox database in an inconsistent state. Users were unable to access mailboxes for 90 minutes. Resolution: database repaired from backup, patch rollback procedure documented. 30+ correlated tickets in 15 minutes.",
+    "tags": [
+      "exchange",
+      "email",
+      "database"
+    ]
+  },
+  {
+    "doc_id": "PM-2025-0154",
+    "type": "post_mortem",
+    "service": "ERP System",
+    "summary": "ERP outage from database connection pool exhaustion",
+    "content": "A runaway batch job exhausted the ERP database connection pool, causing intermittent failures for all users. Resolution: connection pool limits tuned, batch job rate-limited. Declared SEV2 after 12 correlated tickets in 25 minutes.",
+    "tags": [
+      "erp",
+      "database",
+      "connection-pool"
+    ]
+  },
+  {
+    "doc_id": "PM-2025-0201",
+    "type": "post_mortem",
+    "service": "Network/Switch",
+    "summary": "Data center core switch stack failure",
+    "content": "A firmware bug caused the core switch stack to fail over repeatedly, causing intermittent connectivity loss across the building for 2 hours. Resolution: firmware rolled back, vendor engaged. Declared SEV1 due to full-building impact, 60+ tickets in 10 minutes.",
+    "tags": [
+      "network",
+      "switch",
+      "datacenter"
+    ]
+  },
+  {
+    "doc_id": "PM-2025-0132",
+    "type": "post_mortem",
+    "service": "Cloud Storage",
+    "summary": "Cloud storage sync outage due to provider-side incident",
+    "content": "Upstream cloud storage provider had a regional outage affecting sync services. Declared SEV2, no internal root cause. Resolution: provider status page monitored, users notified to work locally until restored. 25 tickets in 18 minutes.",
+    "tags": [
+      "cloud-storage",
+      "sync",
+      "vendor-outage"
+    ]
+  },
+  {
+    "doc_id": "PM-2025-0176",
+    "type": "post_mortem",
+    "service": "Internal Portal",
+    "summary": "Portal SSO outage due to identity provider misconfiguration",
+    "content": "A misapplied configuration change to the SSO identity provider caused a redirect loop for all portal users. Resolution: configuration reverted, change process tightened to require peer review. Declared SEV2, 20 tickets in 12 minutes.",
+    "tags": [
+      "portal",
+      "sso",
+      "identity"
+    ]
+  },
+  {
+    "doc_id": "PM-2025-0143",
+    "type": "post_mortem",
+    "service": "Print Services",
+    "summary": "Print server outage from Windows Print Spooler vulnerability patch",
+    "content": "An emergency security patch for the Print Spooler service caused the print server to crash repeatedly. Resolution: patched service restarted with a stability fix, vendor hotfix applied. Declared SEV3 due to limited business impact, 18 tickets in 20 minutes.",
+    "tags": [
+      "print",
+      "spooler",
+      "windows-update"
+    ]
+  }
+]

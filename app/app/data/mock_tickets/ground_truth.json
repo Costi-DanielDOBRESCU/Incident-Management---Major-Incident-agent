@@ -1,0 +1,2319 @@
+[
+  {
+    "ticket_id": "INC-10001",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "core_switch_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10002",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_cdn_cache_bug",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10003",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10004",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "print_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10005",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10006",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10007",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10008",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_cdn_cache_bug",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10009",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10010",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10011",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10012",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10013",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10014",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "print_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10015",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10016",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10017",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10018",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10019",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10020",
+    "incident_group_id": "GT-001",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10021",
+    "incident_group_id": "GT-001",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10022",
+    "incident_group_id": "GT-001",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10023",
+    "incident_group_id": "GT-001",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10024",
+    "incident_group_id": "GT-001",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10025",
+    "incident_group_id": "GT-001",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10026",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10027",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10028",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10029",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10030",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10031",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10032",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10033",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10034",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10035",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10036",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "core_switch_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10037",
+    "incident_group_id": "GT-002",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10038",
+    "incident_group_id": "GT-002",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10039",
+    "incident_group_id": "GT-002",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10040",
+    "incident_group_id": "GT-002",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10041",
+    "incident_group_id": "GT-002",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10042",
+    "incident_group_id": "GT-002",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10043",
+    "incident_group_id": "GT-002",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10044",
+    "incident_group_id": "GT-002",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10045",
+    "incident_group_id": "GT-002",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10046",
+    "incident_group_id": "GT-002",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10047",
+    "incident_group_id": "GT-002",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10048",
+    "incident_group_id": "GT-002",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10049",
+    "incident_group_id": "GT-002",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10050",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10051",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10052",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10053",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10054",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10055",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_cdn_cache_bug",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10056",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10057",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10058",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10059",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10060",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10061",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10062",
+    "incident_group_id": "GT-003",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10063",
+    "incident_group_id": "GT-003",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10064",
+    "incident_group_id": "GT-003",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10065",
+    "incident_group_id": "GT-003",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10066",
+    "incident_group_id": "GT-003",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10067",
+    "incident_group_id": "GT-003",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10068",
+    "incident_group_id": "GT-003",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10069",
+    "incident_group_id": "GT-003",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10070",
+    "incident_group_id": "GT-003",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10071",
+    "incident_group_id": "GT-003",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10072",
+    "incident_group_id": "GT-003",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10073",
+    "incident_group_id": "GT-003",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10074",
+    "incident_group_id": "GT-003",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10075",
+    "incident_group_id": "GT-003",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10076",
+    "incident_group_id": "GT-003",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10077",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "core_switch_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10078",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10079",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "print_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10080",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10081",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10082",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10083",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10084",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10085",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_cdn_cache_bug",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10086",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10087",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10088",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10089",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10090",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10091",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10092",
+    "incident_group_id": "GT-004",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10093",
+    "incident_group_id": "GT-004",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10094",
+    "incident_group_id": "GT-004",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10095",
+    "incident_group_id": "GT-004",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10096",
+    "incident_group_id": "GT-004",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10097",
+    "incident_group_id": "GT-004",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10098",
+    "incident_group_id": "GT-004",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10099",
+    "incident_group_id": "GT-004",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10100",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10101",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10102",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10103",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10104",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10105",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "print_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10106",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10107",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10108",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10109",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "print_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10110",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10111",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "core_switch_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10112",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10113",
+    "incident_group_id": "GT-005",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10114",
+    "incident_group_id": "GT-005",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10115",
+    "incident_group_id": "GT-005",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10116",
+    "incident_group_id": "GT-005",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10117",
+    "incident_group_id": "GT-005",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10118",
+    "incident_group_id": "GT-005",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10119",
+    "incident_group_id": "GT-005",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10120",
+    "incident_group_id": "GT-005",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10121",
+    "incident_group_id": "GT-005",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10122",
+    "incident_group_id": "GT-005",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10123",
+    "incident_group_id": "GT-005",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10124",
+    "incident_group_id": "GT-005",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10125",
+    "incident_group_id": "GT-005",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10126",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10127",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10128",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10129",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10130",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10131",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10132",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10133",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10134",
+    "incident_group_id": "GT-006",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10135",
+    "incident_group_id": "GT-006",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10136",
+    "incident_group_id": "GT-006",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10137",
+    "incident_group_id": "GT-006",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10138",
+    "incident_group_id": "GT-006",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10139",
+    "incident_group_id": "GT-006",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10140",
+    "incident_group_id": "GT-006",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10141",
+    "incident_group_id": "GT-006",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10142",
+    "incident_group_id": "GT-006",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10143",
+    "incident_group_id": "GT-006",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10144",
+    "incident_group_id": "GT-006",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10145",
+    "incident_group_id": "GT-006",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10146",
+    "incident_group_id": "GT-006",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10147",
+    "incident_group_id": "GT-006",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10148",
+    "incident_group_id": "GT-006",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10149",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "print_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10150",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10151",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10152",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10153",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10154",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_cdn_cache_bug",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10155",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "core_switch_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10156",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10157",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10158",
+    "incident_group_id": "GT-007",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10159",
+    "incident_group_id": "GT-007",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10160",
+    "incident_group_id": "GT-007",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10161",
+    "incident_group_id": "GT-007",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10162",
+    "incident_group_id": "GT-007",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10163",
+    "incident_group_id": "GT-007",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10164",
+    "incident_group_id": "GT-007",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10165",
+    "incident_group_id": "GT-007",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10166",
+    "incident_group_id": "GT-007",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10167",
+    "incident_group_id": "GT-007",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10168",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "print_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10169",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10170",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10171",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10172",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10173",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "core_switch_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10174",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10175",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10176",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10177",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10178",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10179",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10180",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10181",
+    "incident_group_id": "GT-008",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10182",
+    "incident_group_id": "GT-008",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10183",
+    "incident_group_id": "GT-008",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10184",
+    "incident_group_id": "GT-008",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10185",
+    "incident_group_id": "GT-008",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10186",
+    "incident_group_id": "GT-008",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10187",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10188",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10189",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10190",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_cdn_cache_bug",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10191",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "core_switch_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10192",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10193",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10194",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10195",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_cdn_cache_bug",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10196",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10197",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10198",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "print_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10199",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10200",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10201",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10202",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10203",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10204",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10205",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10206",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10207",
+    "incident_group_id": "GT-009",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10208",
+    "incident_group_id": "GT-009",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10209",
+    "incident_group_id": "GT-009",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10210",
+    "incident_group_id": "GT-009",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10211",
+    "incident_group_id": "GT-009",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10212",
+    "incident_group_id": "GT-009",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10213",
+    "incident_group_id": "GT-009",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10214",
+    "incident_group_id": "GT-009",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10215",
+    "incident_group_id": "GT-009",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10216",
+    "incident_group_id": "GT-009",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10217",
+    "incident_group_id": "GT-009",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10218",
+    "incident_group_id": "GT-009",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10219",
+    "incident_group_id": "GT-009",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10220",
+    "incident_group_id": "GT-009",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10221",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10222",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10223",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "print_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10224",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10225",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10226",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "print_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10227",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10228",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "core_switch_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10229",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10230",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "print_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10231",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10232",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10233",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10234",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10235",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10236",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10237",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10238",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10239",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10240",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10241",
+    "incident_group_id": "GT-010",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10242",
+    "incident_group_id": "GT-010",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10243",
+    "incident_group_id": "GT-010",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10244",
+    "incident_group_id": "GT-010",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10245",
+    "incident_group_id": "GT-010",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10246",
+    "incident_group_id": "GT-010",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10247",
+    "incident_group_id": "GT-010",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10248",
+    "incident_group_id": "GT-010",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10249",
+    "incident_group_id": "GT-010",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10250",
+    "incident_group_id": "GT-010",
+    "is_major_incident_ticket": true,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10251",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10252",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10253",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10254",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10255",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "print_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10256",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10257",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10258",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10259",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10260",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10261",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10262",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10263",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10264",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": true
+  },
+  {
+    "ticket_id": "INC-10265",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": true
+  },
+  {
+    "ticket_id": "INC-10266",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": true
+  },
+  {
+    "ticket_id": "INC-10267",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10268",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10269",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "exchange_db_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10270",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "core_switch_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10271",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10272",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10273",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10274",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10275",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_cdn_cache_bug",
+    "is_false_positive_trap": true
+  },
+  {
+    "ticket_id": "INC-10276",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_cdn_cache_bug",
+    "is_false_positive_trap": true
+  },
+  {
+    "ticket_id": "INC-10277",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10278",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10279",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10280",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10281",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10282",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10283",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10284",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10285",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10286",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10287",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "core_switch_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10288",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10289",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10290",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": true
+  },
+  {
+    "ticket_id": "INC-10291",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": true
+  },
+  {
+    "ticket_id": "INC-10292",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": true
+  },
+  {
+    "ticket_id": "INC-10293",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10294",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10295",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "core_switch_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10296",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10297",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10298",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10299",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_licensing",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10300",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10301",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10302",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10303",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10304",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10305",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_sso_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10306",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10307",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10308",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "core_switch_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10309",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10310",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10311",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10312",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": true
+  },
+  {
+    "ticket_id": "INC-10313",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": true
+  },
+  {
+    "ticket_id": "INC-10314",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_db_pool_exhausted",
+    "is_false_positive_trap": true
+  },
+  {
+    "ticket_id": "INC-10315",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "core_switch_failure",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10316",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10317",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "erp_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10318",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10319",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10320",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10321",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "printer_driver_corruption",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10322",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "vpn_auth_degradation",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10323",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10324",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "isp_circuit_flapping",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10325",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "print_server_crash",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10326",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10327",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_quota_exceeded",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10328",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "storage_sync_outage",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10329",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "mail_queue_backlog",
+    "is_false_positive_trap": false
+  },
+  {
+    "ticket_id": "INC-10330",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_cdn_cache_bug",
+    "is_false_positive_trap": true
+  },
+  {
+    "ticket_id": "INC-10331",
+    "incident_group_id": null,
+    "is_major_incident_ticket": false,
+    "root_cause_id": "portal_cdn_cache_bug",
+    "is_false_positive_trap": true
+  }
+]

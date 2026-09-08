@@ -1,0 +1,54 @@
+[
+  {
+    "doc_id": "TPL-COMM-USER-001",
+    "type": "communication_template",
+    "service": "generic",
+    "summary": "User-facing template: service disruption in progress",
+    "content": "We are aware that some users are experiencing issues with {service} since ~{time}. Our team is investigating. Next update by {next_update}. We apologize for the inconvenience.",
+    "tags": [
+      "template",
+      "user-facing",
+      "in-progress"
+    ],
+    "audience": "end_users"
+  },
+  {
+    "doc_id": "TPL-COMM-USER-002",
+    "type": "communication_template",
+    "service": "generic",
+    "summary": "User-facing template: incident resolved",
+    "content": "The issue affecting {service} has been resolved as of {time}. If you continue to experience problems, please raise a new ticket. Thank you for your patience.",
+    "tags": [
+      "template",
+      "user-facing",
+      "resolved"
+    ],
+    "audience": "end_users"
+  },
+  {
+    "doc_id": "TPL-COMM-MGMT-001",
+    "type": "communication_template",
+    "service": "generic",
+    "summary": "Management-facing template: incident declared",
+    "content": "{ticket_count} correlated tickets in {window} min, suspected cause: {suspected_cause}. Severity: {severity}. Status: being tracked. ETA next update: {next_update}.",
+    "tags": [
+      "template",
+      "management-facing",
+      "in-progress"
+    ],
+    "audience": "management"
+  },
+  {
+    "doc_id": "TPL-COMM-MGMT-002",
+    "type": "communication_template",
+    "service": "generic",
+    "summary": "Management-facing template: incident resolved / closed",
+    "content": "Incident {incident_id} ({severity}) affecting {service} has been resolved. Root cause: {root_cause}. Total duration: {duration}. Post-mortem to follow.",
+    "tags": [
+      "template",
+      "management-facing",
+      "resolved"
+    ],
+    "audience": "management"
+  }
+]
