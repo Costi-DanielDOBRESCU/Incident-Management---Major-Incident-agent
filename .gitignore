@@ -28,3 +28,6 @@ app/data/audit_log.jsonl
 
 # docker
 *.log
+
+#config.py
+app/config.py
