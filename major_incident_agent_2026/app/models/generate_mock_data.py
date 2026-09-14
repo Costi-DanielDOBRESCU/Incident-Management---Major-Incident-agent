@@ -24,8 +24,10 @@ from app.models.schemas import GroundTruthLabel, KnowledgeBaseDocument, Ticket  
 
 random.seed(42)  # reproductibil - important pt demo si pt teste
 
-OUT_TICKETS = ROOT / "app" / "data" / "mock_tickets"
-OUT_KB = ROOT / "app" / "data" / "knowledge_base"
+# OUT_TICKETS = ROOT / "app" / "data" / "mock_tickets"
+# OUT_KB = ROOT / "app" / "data" / "knowledge_base"
+OUT_TICKETS = ROOT / "data" / "mock_tickets"
+OUT_KB = ROOT / "data" / "knowledge_base"
 OUT_TICKETS.mkdir(parents=True, exist_ok=True)
 OUT_KB.mkdir(parents=True, exist_ok=True)
 
