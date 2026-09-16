@@ -2,20 +2,21 @@
 UI minimal (Streamlit) pentru demonstrarea fluxului MIA end-to-end.
 
 v1: simulare temporala peste tichetele mock reale + Detection Pipeline live
-(embeddings + clustering), afisat ca lista de tichete in fereastra curenta
-si clustere candidate gasite.
+(embeddings + clustering).
 
-v2: buton "Evalueaza" per cluster -> Assessment Agent (Etapa 5), afiseaza
-severitate, decizie, reasoning + surse RAG.
+v2: buton "Evalueaza" per cluster -> Assessment Agent (Etapa 5).
 
 v3: human-in-the-loop (doc. sectiunea 10) - butoane Aproba/Respinge per
-cluster evaluat -> creeaza un MajorIncident, tinut in st.session_state
-(in memorie, per sesiune de browser - suficient pentru demo MVP, fara DB).
-Istoricul deciziilor e afisat la finalul paginii.
+cluster evaluat -> creeaza un MajorIncident, tinut in st.session_state.
+
+v4: dupa Aprobare, genereaza automat cele 2 CommunicationDraft (end_users +
+management) prin Communication Agent (Etapa 6), fiecare cu propriul buton
+de aprobare - human-in-the-loop separat, conform CommunicationDraft.requires_approval
+(doc. sectiunea 10: aprobarea comunicarii externe e obligatorie, distincta
+de aprobarea declararii incidentului).
 
 Simularea temporala: un slider peste intervalul real de timestamp-uri din
-tickets.json (2026-08-01 -> 2026-08-09). La fiecare pozitie, aplicatia
-recalculeaza exact ce ar vedea sistemul in productie la acel moment.
+tickets.json (2026-08-01 -> 2026-08-09).
 
 Rulare: `python -m streamlit run app/ui/streamlit_app.py`
 """
@@ -27,6 +28,7 @@ from datetime import datetime, timedelta, timezone
 import streamlit as st
 
 from app.agents.assessment_agent import AssessmentError, assess_incident
+from app.agents.communication_agent import CommunicationError, generate_communication
 from app.config import get_settings
 from app.detection.build_cluster import build_incident_cluster
 from app.detection.clustering import cluster_similar_tickets
@@ -214,6 +216,46 @@ with col_right:
                                     f"{status_icon} **{decision.status}** de `{decision.declared_by}` "
                                     f"la {decision.declared_at:%H:%M:%S}"
                                 )
+
+                                # v4 - dupa aprobare, genereaza automat comunicarile (o data)
+                                if decision.status == "Declared":
+                                    comm_key = f"comm_{cluster.cluster_id}"
+
+                                    if comm_key not in st.session_state:
+                                        with st.spinner("Communication Agent genereaza draft-urile..."):
+                                            drafts: dict[str, object] = {}
+                                            for audience in ("end_users", "management"):
+                                                try:
+                                                    drafts[audience] = generate_communication(
+                                                        decision, result, cluster, audience
+                                                    )
+                                                except CommunicationError as exc:
+                                                    drafts[audience] = exc
+                                            st.session_state[comm_key] = drafts
+
+                                    st.markdown("**📨 Comunicari generate**")
+                                    for audience, draft in st.session_state[comm_key].items():
+                                        label = "End users" if audience == "end_users" else "Management"
+                                        with st.container(border=True):
+                                            st.caption(label)
+                                            if isinstance(draft, CommunicationError):
+                                                st.error(f"Eroare Communication Agent: {draft}")
+                                                continue
+
+                                            st.markdown(f"**{draft.subject}**")
+                                            st.write(draft.body)
+                                            st.caption(f"Surse: {', '.join(draft.rag_sources)}")
+
+                                            comm_decision_key = f"comm_decision_{cluster.cluster_id}_{audience}"
+
+                                            if comm_decision_key not in st.session_state:
+                                                if st.button(
+                                                    "✅ Aproba comunicarea",
+                                                    key=f"approve_comm_{cluster.cluster_id}_{audience}",
+                                                ):
+                                                    st.session_state[comm_decision_key] = "Approved"
+                                            else:
+                                                st.markdown(f"✅ **{st.session_state[comm_decision_key]}**")
 
 st.divider()
 st.subheader("📜 Istoric decizii (sesiunea curenta)")
