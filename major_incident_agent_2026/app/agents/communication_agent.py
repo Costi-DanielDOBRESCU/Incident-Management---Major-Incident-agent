@@ -100,6 +100,7 @@ INCIDENT (exact data, computed deterministically - use as-is):
 - Service: {cluster.service_guess}
 - Severity: {incident.severity}
 - Ticket count: {cluster.ticket_count}
+- Incident started at: {cluster.window_start:%H:%M} UTC
 - Time window duration: {duration_minutes} minutes
 - Suspected root cause: {incident.root_cause_suspected or assessment.reasoning}
 - Next update ETA: {next_update:%H:%M} UTC
@@ -111,6 +112,9 @@ RELEVANT TEMPLATE(S) FOR THIS AUDIENCE (from knowledge base - match this
 tone and structure, adapt the placeholder content to the incident above,
 do NOT leave literal placeholders like "{{service}}" in your output):
 {template_block}
+
+If the template uses a phrase like "since ~{{time}}", use the "Incident
+started at" clock time above for that - NOT the duration in minutes.
 
 Respond STRICTLY in the required JSON format, with fields "subject" and
 "body" only. The body should read as a finished message ready to send, not
