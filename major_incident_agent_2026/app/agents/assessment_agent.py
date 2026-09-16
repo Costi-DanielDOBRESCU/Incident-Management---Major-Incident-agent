@@ -127,15 +127,18 @@ cause is located:
   that lower severity applies regardless of ticket count. If the tickets
   match (b), proceed to count-based thresholds normally.
 
-Step 2 - Extract the EXACT numeric thresholds from the runbook above (min.
-number of users/tickets, time window in minutes) for each SEV level
-mentioned.
+Step 2 - Quote the runbook's thresholds EXACTLY as written, for ALL severity
+levels mentioned (SEV1, SEV2, SEV3), word for word. Do not paraphrase or
+invent numbers - copy the relevant phrase for each level directly from the
+SEVERITY CRITERIA block above.
 
 Step 3 - If Step 1 classified this as (a) LOCAL/INDIVIDUAL, that lower
 severity applies and you should STOP here - do not escalate based on ticket
-count. If Step 1 classified this as (b) SHARED/CENTRAL, compare the
-cluster's numbers (Ticket count = {cluster.ticket_count}, Window duration =
-{duration_minutes} minutes) against the thresholds from Step 2.
+count. If Step 1 classified this as (b) SHARED/CENTRAL, check the levels
+from MOST severe to LEAST severe (SEV1 first, then SEV2, then SEV3) against
+the cluster's numbers (Ticket count = {cluster.ticket_count}, Window
+duration = {duration_minutes} minutes), and pick the FIRST (most severe)
+level whose threshold is met or exceeded.
 
 Step 4 - Based on Steps 1-3, pick estimated_severity.
 
