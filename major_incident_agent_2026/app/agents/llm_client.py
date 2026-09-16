@@ -32,6 +32,7 @@ def generate_structured_json(
     *,
     system: str | None = None,
     max_retries: int = 1,
+    temperature: float = 0.7,
 ) -> dict:
     """
     Apeleaza LLM-ul local (Ollama) cu un prompt si o schema JSON (format
@@ -70,6 +71,7 @@ def generate_structured_json(
                 model=settings.ollama_llm_model,
                 messages=messages,
                 format=json_schema,
+                options={"temperature": temperature},
             )
         except ResponseError as exc:
             raise LlmGenerationError(f"Ollama a raspuns cu eroare: {exc}") from exc

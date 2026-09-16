@@ -108,34 +108,61 @@ SEVERITY CRITERIA (runbook for this service):
 REQUIRED METHOD (follow these steps in order, and show the result of each
 step in the "reasoning" field):
 
-Step 1 - Extract the EXACT numeric thresholds from the runbook above (min.
+Step 1 - Read the ticket content carefully and identify WHERE the root
+cause is located:
+  (a) LOCAL/INDIVIDUAL cause: the problem is specific to that one user's own
+      device, account, license, or personal configuration (e.g. "my license
+      key", "my replacement machine", "my mailbox permissions"). Multiple
+      users independently hitting the SAME kind of local/individual problem
+      does NOT make it a shared outage - it stays an individual-scope issue,
+      no matter how many tickets pile up.
+  (b) SHARED/CENTRAL cause: the problem is with a central system or service
+      that many users depend on (e.g. the portal itself, the SSO provider,
+      the mail server, the network switch) being down, erroring, or
+      degraded for anyone who tries to use it. Several different users
+      reporting the SAME central system failing is evidence FOR a shared
+      outage, not against it.
+  If the runbook explicitly calls out a local/individual category (licensing,
+  local config, single-user, individual mailbox) AND the tickets match (a),
+  that lower severity applies regardless of ticket count. If the tickets
+  match (b), proceed to count-based thresholds normally.
+
+Step 2 - Extract the EXACT numeric thresholds from the runbook above (min.
 number of users/tickets, time window in minutes) for each SEV level
 mentioned.
 
-Step 2 - Directly compare the cluster's numbers (Ticket count = {cluster.ticket_count},
-Window duration = {duration_minutes} minutes) against the thresholds from
-Step 1. Do not dismiss a threshold just because the runbook's wording
-differs slightly from the ticket wording - the NUMBERS matter, not exact
-phrasing.
+Step 3 - If Step 1 classified this as (a) LOCAL/INDIVIDUAL, that lower
+severity applies and you should STOP here - do not escalate based on ticket
+count. If Step 1 classified this as (b) SHARED/CENTRAL, compare the
+cluster's numbers (Ticket count = {cluster.ticket_count}, Window duration =
+{duration_minutes} minutes) against the thresholds from Step 2.
 
-Step 3 - Based on the comparison in Step 2, pick estimated_severity. If the
-cluster's numbers meet or exceed a SEV level's threshold, that level (or a
-more severe one) is justified, even if other details are missing.
+Step 4 - Based on Steps 1-3, pick estimated_severity.
 
-Step 4 - Decide is_major_incident_candidate and recommended_action,
-consistent with Step 3 (if you picked SEV1 or SEV2, is_major_incident_candidate
-must be true and recommended_action = "propose_major_incident", unless you
-have a clear, explicit reason otherwise).
+Step 5 - Decide is_major_incident_candidate and recommended_action,
+consistent with Step 4 (SEV1/SEV2 -> is_major_incident_candidate=true and
+recommended_action="propose_major_incident", unless Step 1 classified this
+as (a) LOCAL/INDIVIDUAL, in which case false/dismiss or monitor).
 
-EXAMPLE of a correctly reasoned answer (illustrative format only, different
-data, just to show the expected reasoning style):
-"Step 1: RB-EXAMPLE-000 defines SEV2 at 3+ tickets within 15 min. Step 2:
-this cluster has 6 tickets in 8 minutes -> exceeds the SEV2 threshold
-(6>=3, 8<=15). Step 3: I choose SEV2. Step 4: is_major_incident_candidate=true,
-recommended_action=propose_major_incident."
+EXAMPLE A - shared/central cause (illustrative, different data):
+"Step 1: tickets describe the portal/login itself failing for every
+reporter - this is a SHARED/CENTRAL cause (the portal service), not a
+local/individual one. Step 2: RB-EXAMPLE-000 defines SEV2 at 3+ tickets
+within 15 min. Step 3: shared cause, so apply thresholds - cluster has 6
+tickets in 8 minutes -> exceeds SEV2 threshold. Step 4: SEV2. Step 5:
+is_major_incident_candidate=true, recommended_action=propose_major_incident."
+
+EXAMPLE B - local/individual cause (illustrative, different data): "Step 1:
+tickets describe a per-device license activation error tied to each
+reporter's own new/replacement machine - this is a LOCAL/INDIVIDUAL cause
+(their own license/device), matching the runbook's explicit 'isolated
+single-user issue (licensing)' category, even though 3 different users hit
+it. Step 2: threshold table noted for completeness. Step 3: local/individual
+cause, so skip thresholds regardless of count. Step 4: SEV3. Step 5:
+is_major_incident_candidate=false, recommended_action=monitor."
 
 Respond STRICTLY in the required JSON format. In the "reasoning" field,
-include the result of each step (1-4) explicitly, and cite the doc_ids used
+include the result of each step (1-5) explicitly, and cite the doc_ids used
 (e.g. "per RB-VPN-002...").
 """
 
@@ -174,7 +201,8 @@ def assess_incident(
         llm_output = generate_structured_json(
             prompt=prompt,
             json_schema=schema,
-            system="Esti un asistent tehnic precis. Raspunzi STRICT in JSON, fara text in plus.",
+            system="You are a precise technical assistant. Respond STRICTLY in JSON, no extra text.",
+            temperature=0.1,
         )
     except LlmGenerationError as exc:
         raise AssessmentError(f"LLM-ul nu a raspuns pentru cluster {cluster.cluster_id}: {exc}") from exc
