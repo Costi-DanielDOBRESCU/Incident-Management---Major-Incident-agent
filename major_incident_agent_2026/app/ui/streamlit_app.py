@@ -8,14 +8,14 @@ si clustere candidate gasite.
 v2: buton "Evalueaza" per cluster -> Assessment Agent (Etapa 5), afiseaza
 severitate, decizie, reasoning + surse RAG.
 
+v3: human-in-the-loop (doc. sectiunea 10) - butoane Aproba/Respinge per
+cluster evaluat -> creeaza un MajorIncident, tinut in st.session_state
+(in memorie, per sesiune de browser - suficient pentru demo MVP, fara DB).
+Istoricul deciziilor e afisat la finalul paginii.
+
 Simularea temporala: un slider peste intervalul real de timestamp-uri din
 tickets.json (2026-08-01 -> 2026-08-09). La fiecare pozitie, aplicatia
-recalculeaza exact ce ar vedea sistemul in productie la acel moment:
-tichetele din fereastra glisanta (settings.clustering_window_minutes),
-urmate de embeddings + similaritate + clustering (Etapa 3, neschimbate).
-
-Urmeaza (v3): Approve/Reject uman -> MajorIncident (human-in-the-loop, doc.
-sectiunea 10).
+recalculeaza exact ce ar vedea sistemul in productie la acel moment.
 
 Rulare: `python -m streamlit run app/ui/streamlit_app.py`
 """
@@ -34,6 +34,7 @@ from app.detection.embeddings import create_embedding
 from app.detection.similarity import calculate_similarity_matrix
 from app.detection.time_window import filter_tickets_by_time_window
 from app.ingestion.mock_jira_api import fetch_tickets
+from app.models.schemas import MajorIncident
 
 st.set_page_config(page_title="MIA — Major Incident Agent", layout="wide")
 
@@ -174,3 +175,52 @@ with col_right:
                             with st.expander("Reasoning + surse RAG"):
                                 st.write(result.reasoning)
                                 st.caption(f"Surse: {', '.join(result.rag_sources)}")
+
+                            decision_key = f"decision_{cluster.cluster_id}"
+
+                            if decision_key not in st.session_state:
+                                col_a, col_b = st.columns(2)
+                                with col_a:
+                                    if st.button("✅ Aproba Major Incident", key=f"approve_{cluster.cluster_id}"):
+                                        st.session_state[decision_key] = MajorIncident(
+                                            incident_id=f"MI-{cluster.cluster_id}",
+                                            cluster_id=cluster.cluster_id,
+                                            status="Declared",
+                                            severity=result.estimated_severity,
+                                            declared_by="demo_user",
+                                            declared_at=datetime.now(timezone.utc),
+                                            root_cause_suspected=result.reasoning[:200],
+                                        )
+                                        st.session_state.setdefault("major_incidents", []).append(
+                                            st.session_state[decision_key]
+                                        )
+                                with col_b:
+                                    if st.button("❌ Respinge", key=f"reject_{cluster.cluster_id}"):
+                                        st.session_state[decision_key] = MajorIncident(
+                                            incident_id=f"MI-{cluster.cluster_id}",
+                                            cluster_id=cluster.cluster_id,
+                                            status="Rejected",
+                                            severity=result.estimated_severity,
+                                            declared_by="demo_user",
+                                            declared_at=datetime.now(timezone.utc),
+                                        )
+                                        st.session_state.setdefault("major_incidents", []).append(
+                                            st.session_state[decision_key]
+                                        )
+                            else:
+                                decision = st.session_state[decision_key]
+                                status_icon = "✅" if decision.status == "Declared" else "❌"
+                                st.markdown(
+                                    f"{status_icon} **{decision.status}** de `{decision.declared_by}` "
+                                    f"la {decision.declared_at:%H:%M:%S}"
+                                )
+
+st.divider()
+st.subheader("📜 Istoric decizii (sesiunea curenta)")
+history = st.session_state.get("major_incidents", [])
+if not history:
+    st.caption("Nicio decizie inregistrata inca.")
+else:
+    for mi in reversed(history):
+        icon = "✅" if mi.status == "Declared" else "❌"
+        st.write(f"{icon} `{mi.incident_id}` — {mi.status} — {mi.severity} — {mi.declared_at:%Y-%m-%d %H:%M:%S}")

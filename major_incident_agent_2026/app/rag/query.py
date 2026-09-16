@@ -31,24 +31,16 @@ def query_knowledge_base(
     collection: str,
     n_results: int = 3,
     service_filter: str | None = None,
+    audience_filter: str | None = None,
 ) -> list[RagResult]:
     """
-    Interogheaza o colectie ChromaDB si returneaza cele mai relevante
-    documente, ca similaritate cosine descrescatoare.
+    ...(docstring existent, plus:)
 
-    Args:
-        query: textul de cautare (ex. "VPN outage communication template").
-        collection: una din ALL_COLLECTIONS (historical_major_incidents,
-            runbooks, communication_templates).
-        n_results: nr. maxim de documente returnate.
-        service_filter: daca setat, restrictioneaza cautarea la documentele
-            cu acest "service" exact (ex. "VPN Gateway"). Util cand Assessment
-            Agent deja cunoaste affected_service din cluster si nu are rost
-            sa primeasca runbook-uri de la alte servicii.
-
-    Returns:
-        Lista de RagResult, sortata descrescator dupa score (similaritate).
-        Lista goala daca colectia e vida sau filtrul nu are potriviri.
+    Args (nou):
+        audience_filter: daca setat, restrictioneaza cautarea la documentele
+            cu acest "audience" exact (ex. "end_users"). Folosit de
+            Communication Agent pe colectia communication_templates - acolo
+            "service" e mereu "generic", filtrarea relevanta e pe audienta.
     """
     if not query.strip():
         raise ValueError("query nu poate fi gol.")
@@ -60,7 +52,19 @@ def query_knowledge_base(
 
     coll = get_or_create_collection(collection)
 
-    where: dict[str, Any] | None = {"service": service_filter} if service_filter else None
+    conditions = []
+    if service_filter:
+        conditions.append({"service": service_filter})
+    if audience_filter:
+        conditions.append({"audience": audience_filter})
+
+    where: dict[str, Any] | None
+    if len(conditions) == 0:
+        where = None
+    elif len(conditions) == 1:
+        where = conditions[0]
+    else:
+        where = {"$and": conditions}
 
     raw = coll.query(
         query_texts=[query],
