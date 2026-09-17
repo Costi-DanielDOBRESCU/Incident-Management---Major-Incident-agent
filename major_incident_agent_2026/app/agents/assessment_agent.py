@@ -56,117 +56,174 @@ def _build_rag_query_text(cluster: IncidentCluster, ticket_summaries: list[str])
     return f"{cluster.service_guess}: {sample}"
 
 
+# def _build_prompt(
+#     cluster: IncidentCluster,
+#     ticket_summaries: list[str],
+#     historical_context: list[dict],
+#     runbook_context: list[dict],
+# ) -> str:
+#     """
+#     Construieste promptul trimis la LLM. Intentionat in ENGLEZA, desi
+#     codul/comentariile din proiect sunt in romana: tichetele, knowledge
+#     base-ul si runbook-urile sunt toate in engleza, iar un prompt mixt
+#     RO/EN degradeaza raationamentul unui model mic (llama3.1:8b) prin
+#     comutare inutila de limba intre instructiuni si date.
+#     """
+#     summaries_block = "\n".join(f"  - {s}" for s in ticket_summaries) or "  (no individual ticket details available)"
+
+#     historical_block = "\n".join(
+#         f"  [{doc['doc_id']}] (similarity {doc['score']}): {doc['content']}"
+#         for doc in historical_context
+#     ) or "  (no similar historical incident found)"
+
+#     runbook_block = "\n".join(
+#         f"  [{doc['doc_id']}] (similarity {doc['score']}): {doc['content']}"
+#         for doc in runbook_context
+#     ) or "  (no runbook found for this service)"
+
+#     duration_minutes = round((cluster.window_end - cluster.window_start).total_seconds() / 60, 1)
+
+#     return f"""You are the Assessment Agent in an IT Major Incident detection system.
+
+# You are given a cluster of correlated tickets, detected automatically
+# (deterministically, via semantic similarity and a time window). Assess
+# whether this cluster represents a genuine Major Incident candidate.
+
+# DETECTED CLUSTER (exact data, computed deterministically - use as-is,
+# do not recompute):
+# - Service: {cluster.service_guess}
+# - Ticket count: {cluster.ticket_count}
+# - Average similarity between tickets: {cluster.centroid_similarity}
+# - Window duration: {duration_minutes} minutes
+
+# Individual tickets (sample):
+# {summaries_block}
+
+# SIMILAR HISTORICAL INCIDENTS (from knowledge base):
+# {historical_block}
+
+# SEVERITY CRITERIA (runbook for this service):
+# {runbook_block}
+
+# REQUIRED METHOD (follow these steps in order, and show the result of each
+# step in the "reasoning" field):
+
+# Step 1 - Read the ticket content carefully and identify WHERE the root
+# cause is located:
+#   (a) LOCAL/INDIVIDUAL cause: the problem is specific to that one user's own
+#       device, account, license, or personal configuration (e.g. "my license
+#       key", "my replacement machine", "my mailbox permissions"). Multiple
+#       users independently hitting the SAME kind of local/individual problem
+#       does NOT make it a shared outage - it stays an individual-scope issue,
+#       no matter how many tickets pile up.
+#   (b) SHARED/CENTRAL cause: the problem is with a central system or service
+#       that many users depend on (e.g. the portal itself, the SSO provider,
+#       the mail server, the network switch) being down, erroring, or
+#       degraded for anyone who tries to use it. Several different users
+#       reporting the SAME central system failing is evidence FOR a shared
+#       outage, not against it.
+#   If the runbook explicitly calls out a local/individual category (licensing,
+#   local config, single-user, individual mailbox) AND the tickets match (a),
+#   that lower severity applies regardless of ticket count. If the tickets
+#   match (b), proceed to count-based thresholds normally.
+
+# Step 2 - Quote the runbook's thresholds EXACTLY as written, for ALL severity
+# levels mentioned (SEV1, SEV2, SEV3), word for word. Do not paraphrase or
+# invent numbers - copy the relevant phrase for each level directly from the
+# SEVERITY CRITERIA block above.
+
+# Step 3 - If Step 1 classified this as (a) LOCAL/INDIVIDUAL, that lower
+# severity applies and you should STOP here - do not escalate based on ticket
+# count. If Step 1 classified this as (b) SHARED/CENTRAL, check the levels
+# from MOST severe to LEAST severe (SEV1 first, then SEV2, then SEV3) against
+# the cluster's numbers (Ticket count = {cluster.ticket_count}, Window
+# duration = {duration_minutes} minutes), and pick the FIRST (most severe)
+# level whose threshold is met or exceeded.
+
+# Step 4 - Based on Steps 1-3, pick estimated_severity.
+
+# Step 5 - Decide is_major_incident_candidate and recommended_action,
+# consistent with Step 4 (SEV1/SEV2 -> is_major_incident_candidate=true and
+# recommended_action="propose_major_incident", unless Step 1 classified this
+# as (a) LOCAL/INDIVIDUAL, in which case false/dismiss or monitor).
+
+# EXAMPLE A - shared/central cause (illustrative, different data):
+# "Step 1: tickets describe the portal/login itself failing for every
+# reporter - this is a SHARED/CENTRAL cause (the portal service), not a
+# local/individual one. Step 2: RB-EXAMPLE-000 defines SEV2 at 3+ tickets
+# within 15 min. Step 3: shared cause, so apply thresholds - cluster has 6
+# tickets in 8 minutes -> exceeds SEV2 threshold. Step 4: SEV2. Step 5:
+# is_major_incident_candidate=true, recommended_action=propose_major_incident."
+
+# EXAMPLE B - local/individual cause (illustrative, different data): "Step 1:
+# tickets describe a per-device license activation error tied to each
+# reporter's own new/replacement machine - this is a LOCAL/INDIVIDUAL cause
+# (their own license/device), matching the runbook's explicit 'isolated
+# single-user issue (licensing)' category, even though 3 different users hit
+# it. Step 2: threshold table noted for completeness. Step 3: local/individual
+# cause, so skip thresholds regardless of count. Step 4: SEV3. Step 5:
+# is_major_incident_candidate=false, recommended_action=monitor."
+
+# Respond STRICTLY in the required JSON format. In the "reasoning" field,
+# include the result of each step (1-5) explicitly, and cite the doc_ids used
+# (e.g. "per RB-VPN-002...").
+# """
+
 def _build_prompt(
     cluster: IncidentCluster,
     ticket_summaries: list[str],
     historical_context: list[dict],
     runbook_context: list[dict],
 ) -> str:
-    """
-    Construieste promptul trimis la LLM. Intentionat in ENGLEZA, desi
-    codul/comentariile din proiect sunt in romana: tichetele, knowledge
-    base-ul si runbook-urile sunt toate in engleza, iar un prompt mixt
-    RO/EN degradeaza raationamentul unui model mic (llama3.1:8b) prin
-    comutare inutila de limba intre instructiuni si date.
-    """
-    summaries_block = "\n".join(f"  - {s}" for s in ticket_summaries) or "  (no individual ticket details available)"
+    summaries_block = "\n".join(f"  - {s}" for s in ticket_summaries) or "  (no details)"
 
     historical_block = "\n".join(
-        f"  [{doc['doc_id']}] (similarity {doc['score']}): {doc['content']}"
-        for doc in historical_context
-    ) or "  (no similar historical incident found)"
+        f"  [{doc['doc_id']}]: {doc['content']}" for doc in historical_context
+    ) or "  (none)"
 
     runbook_block = "\n".join(
-        f"  [{doc['doc_id']}] (similarity {doc['score']}): {doc['content']}"
-        for doc in runbook_context
-    ) or "  (no runbook found for this service)"
+        f"  [{doc['doc_id']}]: {doc['content']}" for doc in runbook_context
+    ) or "  (none)"
 
     duration_minutes = round((cluster.window_end - cluster.window_start).total_seconds() / 60, 1)
 
-    return f"""You are the Assessment Agent in an IT Major Incident detection system.
+    return f"""You are the Assessment Agent for IT Major Incidents. Evaluate the following cluster.
 
-You are given a cluster of correlated tickets, detected automatically
-(deterministically, via semantic similarity and a time window). Assess
-whether this cluster represents a genuine Major Incident candidate.
-
-DETECTED CLUSTER (exact data, computed deterministically - use as-is,
-do not recompute):
+CLUSTER DATA:
 - Service: {cluster.service_guess}
-- Ticket count: {cluster.ticket_count}
-- Average similarity between tickets: {cluster.centroid_similarity}
-- Window duration: {duration_minutes} minutes
+- Ticket Count: {cluster.ticket_count}
+- Time Window: {duration_minutes} minutes
 
-Individual tickets (sample):
+TICKETS:
 {summaries_block}
 
-SIMILAR HISTORICAL INCIDENTS (from knowledge base):
+HISTORICAL CONTEXT:
 {historical_block}
 
-SEVERITY CRITERIA (runbook for this service):
+RUNBOOK SEVERITY RULES:
 {runbook_block}
 
-REQUIRED METHOD (follow these steps in order, and show the result of each
-step in the "reasoning" field):
+EVALUATION RULES:
+1. Determine Scope: 
+   - SHARED/CENTRAL: Affects central infrastructure, database, SSO, or service used by multiple people.
+   - LOCAL/INDIVIDUAL: Affects single user's device, replacement laptop, or personal license.
+2. Evaluate Severity:
+   - If LOCAL/INDIVIDUAL -> default to SEV3 (or lowest severity).
+   - If SHARED/CENTRAL -> Compare ticket count ({cluster.ticket_count}) and window ({duration_minutes} min) against RUNBOOK SEVERITY RULES. 
+   - IMPORTANT: If multiple users face a central issue (e.g. database down, portal error), it MUST NOT be SEV3 if it meets SEV1/SEV2 criteria in the runbook.
+3. Major Incident Candidate:
+   - If estimated_severity is SEV1 or SEV2 -> is_major_incident_candidate = true, recommended_action = "propose_major_incident".
+   - If estimated_severity is SEV3 -> is_major_incident_candidate = false, recommended_action = "monitor" or "dismiss".
 
-Step 1 - Read the ticket content carefully and identify WHERE the root
-cause is located:
-  (a) LOCAL/INDIVIDUAL cause: the problem is specific to that one user's own
-      device, account, license, or personal configuration (e.g. "my license
-      key", "my replacement machine", "my mailbox permissions"). Multiple
-      users independently hitting the SAME kind of local/individual problem
-      does NOT make it a shared outage - it stays an individual-scope issue,
-      no matter how many tickets pile up.
-  (b) SHARED/CENTRAL cause: the problem is with a central system or service
-      that many users depend on (e.g. the portal itself, the SSO provider,
-      the mail server, the network switch) being down, erroring, or
-      degraded for anyone who tries to use it. Several different users
-      reporting the SAME central system failing is evidence FOR a shared
-      outage, not against it.
-  If the runbook explicitly calls out a local/individual category (licensing,
-  local config, single-user, individual mailbox) AND the tickets match (a),
-  that lower severity applies regardless of ticket count. If the tickets
-  match (b), proceed to count-based thresholds normally.
+INSTRUCTIONS FOR REASONING FIELD:
+Write a step-by-step reasoning (Step 1 to Step 5):
+Step 1: Identify if SHARED/CENTRAL or LOCAL/INDIVIDUAL.
+Step 2: Quote runbook threshold rules.
+Step 3: Compare cluster numbers ({cluster.ticket_count} tickets in {duration_minutes} min) to rules.
+Step 4: State final estimated_severity (SEV1, SEV2, or SEV3).
+Step 5: State final decision (is_major_incident_candidate and recommended_action).
 
-Step 2 - Quote the runbook's thresholds EXACTLY as written, for ALL severity
-levels mentioned (SEV1, SEV2, SEV3), word for word. Do not paraphrase or
-invent numbers - copy the relevant phrase for each level directly from the
-SEVERITY CRITERIA block above.
-
-Step 3 - If Step 1 classified this as (a) LOCAL/INDIVIDUAL, that lower
-severity applies and you should STOP here - do not escalate based on ticket
-count. If Step 1 classified this as (b) SHARED/CENTRAL, check the levels
-from MOST severe to LEAST severe (SEV1 first, then SEV2, then SEV3) against
-the cluster's numbers (Ticket count = {cluster.ticket_count}, Window
-duration = {duration_minutes} minutes), and pick the FIRST (most severe)
-level whose threshold is met or exceeded.
-
-Step 4 - Based on Steps 1-3, pick estimated_severity.
-
-Step 5 - Decide is_major_incident_candidate and recommended_action,
-consistent with Step 4 (SEV1/SEV2 -> is_major_incident_candidate=true and
-recommended_action="propose_major_incident", unless Step 1 classified this
-as (a) LOCAL/INDIVIDUAL, in which case false/dismiss or monitor).
-
-EXAMPLE A - shared/central cause (illustrative, different data):
-"Step 1: tickets describe the portal/login itself failing for every
-reporter - this is a SHARED/CENTRAL cause (the portal service), not a
-local/individual one. Step 2: RB-EXAMPLE-000 defines SEV2 at 3+ tickets
-within 15 min. Step 3: shared cause, so apply thresholds - cluster has 6
-tickets in 8 minutes -> exceeds SEV2 threshold. Step 4: SEV2. Step 5:
-is_major_incident_candidate=true, recommended_action=propose_major_incident."
-
-EXAMPLE B - local/individual cause (illustrative, different data): "Step 1:
-tickets describe a per-device license activation error tied to each
-reporter's own new/replacement machine - this is a LOCAL/INDIVIDUAL cause
-(their own license/device), matching the runbook's explicit 'isolated
-single-user issue (licensing)' category, even though 3 different users hit
-it. Step 2: threshold table noted for completeness. Step 3: local/individual
-cause, so skip thresholds regardless of count. Step 4: SEV3. Step 5:
-is_major_incident_candidate=false, recommended_action=monitor."
-
-Respond STRICTLY in the required JSON format. In the "reasoning" field,
-include the result of each step (1-5) explicitly, and cite the doc_ids used
-(e.g. "per RB-VPN-002...").
+Respond STRICTLY in valid JSON.
 """
 
 

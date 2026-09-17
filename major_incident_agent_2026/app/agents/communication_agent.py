@@ -60,6 +60,84 @@ def _build_rag_query_text(cluster: IncidentCluster, audience: str) -> str:
     return f"{cluster.service_guess} outage communication template {audience}"
 
 
+# def _build_prompt(
+#     incident: MajorIncident,
+#     assessment: IncidentAssessment,
+#     cluster: IncidentCluster,
+#     audience: Literal["end_users", "management"],
+#     template_context: list[dict],
+# ) -> str:
+#     template_block = "\n".join(
+#         f"  [{doc['doc_id']}] (similarity {doc['score']}): {doc['content']}"
+#         for doc in template_context
+#     ) or "  (no template found for this audience)"
+
+#     next_update = cluster.window_end + timedelta(minutes=_NEXT_UPDATE_DELAY_MINUTES)
+#     duration_minutes = round((cluster.window_end - cluster.window_start).total_seconds() / 60, 1)
+
+#     audience_instructions = {
+#         "end_users": (
+#             "Write a short, plain-language message for END USERS. Do not include "
+#             "internal details (root cause hypotheses, ticket counts, doc_ids, "
+#             "severity codes). Focus on: what is affected, that it's being worked "
+#             "on, and when the next update will come."
+#         ),
+#         "management": (
+#             "Write a concise, factual message for MANAGEMENT. Include the "
+#             "concrete numbers (ticket count, time window, severity) and the "
+#             "suspected cause. This audience expects data, not reassurance."
+#         ),
+#     }[audience]
+
+#     return f"""You are the Communication Agent in an IT Major Incident management system.
+
+# A Major Incident has been APPROVED by a human (human-in-the-loop already
+# happened - do not question whether this should be declared, only draft the
+# communication).
+
+# INCIDENT (exact data, computed deterministically - use as-is):
+# - Incident ID: {incident.incident_id}
+# - Service: {cluster.service_guess}
+# - Severity: {incident.severity}
+# - Ticket count: {cluster.ticket_count}
+# - Incident started at: {cluster.window_start:%H:%M} UTC
+# - Time window duration: {duration_minutes} minutes
+# - Suspected root cause: {incident.root_cause_suspected or assessment.reasoning}
+# - Next update ETA: {next_update:%H:%M} UTC
+
+# TARGET AUDIENCE: {audience}
+# {audience_instructions}
+
+# RELEVANT TEMPLATE(S) FOR THIS AUDIENCE (from knowledge base - match this
+# tone and structure, adapt the placeholder content to the incident above,
+# do NOT leave literal placeholders like "{{service}}" in your output):
+# {template_block}
+
+# If the template uses a phrase like "since ~{{time}}", use the "Incident
+# started at" clock time above for that - NOT the duration in minutes.
+
+# Respond STRICTLY in the required JSON format, with fields "subject" and
+# "body" only. The body should read as a finished message ready to send, not
+# a template.
+# """
+
+import re
+
+def _clean_root_cause(assessment: IncidentAssessment) -> str:
+    """ Curata complet prefixele de reasoning ale LLM-ului. """
+    reasoning = assessment.reasoning or ""
+    
+    # Daca contine "SHARED/CENTRAL" sau "Step 1", oferim un rezumat curat direct
+    if "SHARED/CENTRAL" in reasoning or "Step 1" in reasoning:
+        return f"Service outage/degradation affecting {assessment.affected_service}"
+    
+    # Eliminam eventualele ramasite de 'Step X:'
+    cleaned = re.sub(r"^Step\s*\d+:?\s*", "", reasoning, flags=re.IGNORECASE).strip()
+    first_sentence = cleaned.split(".")[0]
+    
+    return first_sentence if len(first_sentence) < 100 else f"Service issue on {assessment.affected_service}"
+
+
 def _build_prompt(
     incident: MajorIncident,
     assessment: IncidentAssessment,
@@ -72,8 +150,19 @@ def _build_prompt(
         for doc in template_context
     ) or "  (no template found for this audience)"
 
-    next_update = cluster.window_end + timedelta(minutes=_NEXT_UPDATE_DELAY_MINUTES)
+    # FIX 1: Calculam "Next update" relativ la momentul executiei curente (datetime.now)
+    from datetime import datetime, timezone
+    now_utc = datetime.now(timezone.utc)
+    next_update = now_utc + timedelta(minutes=_NEXT_UPDATE_DELAY_MINUTES)
+    
     duration_minutes = round((cluster.window_end - cluster.window_start).total_seconds() / 60, 1)
+
+    # FIX 2: Ignoram textul de debug (Step 1-5, SHARED/CENTRAL) pentru a nu fi preluat de LLM
+    raw_cause = incident.root_cause_suspected or assessment.reasoning or ""
+    if "Step 1" in raw_cause or "SHARED/CENTRAL" in raw_cause or not raw_cause:
+        suspected_cause = f"Central service disruption affecting {cluster.service_guess}"
+    else:
+        suspected_cause = _clean_root_cause(assessment)
 
     audience_instructions = {
         "end_users": (
@@ -84,41 +173,34 @@ def _build_prompt(
         ),
         "management": (
             "Write a concise, factual message for MANAGEMENT. Include the "
-            "concrete numbers (ticket count, time window, severity) and the "
-            "suspected cause. This audience expects data, not reassurance."
+            "concrete numbers (ticket count, time window, severity) and a short "
+            "1-sentence summary of the suspected cause. Do NOT output LLM step-by-step reasoning, "
+            "step numbers, or placeholders like {TPL-COMM-MGMT-001} in the final text."
+            "CRITICAL: Replace ALL template placeholders like {ticket_count} or {window} with their actual numeric values from INCIDENT DATA."
         ),
     }[audience]
 
     return f"""You are the Communication Agent in an IT Major Incident management system.
 
-A Major Incident has been APPROVED by a human (human-in-the-loop already
-happened - do not question whether this should be declared, only draft the
-communication).
+A Major Incident has been APPROVED by a human.
 
-INCIDENT (exact data, computed deterministically - use as-is):
+INCIDENT DATA:
 - Incident ID: {incident.incident_id}
 - Service: {cluster.service_guess}
 - Severity: {incident.severity}
 - Ticket count: {cluster.ticket_count}
 - Incident started at: {cluster.window_start:%H:%M} UTC
 - Time window duration: {duration_minutes} minutes
-- Suspected root cause: {incident.root_cause_suspected or assessment.reasoning}
+- Suspected root cause: {suspected_cause}
 - Next update ETA: {next_update:%H:%M} UTC
 
 TARGET AUDIENCE: {audience}
 {audience_instructions}
 
-RELEVANT TEMPLATE(S) FOR THIS AUDIENCE (from knowledge base - match this
-tone and structure, adapt the placeholder content to the incident above,
-do NOT leave literal placeholders like "{{service}}" in your output):
+RELEVANT TEMPLATES (from knowledge base - match tone, adapt content, DO NOT leave placeholders like {{service}}):
 {template_block}
 
-If the template uses a phrase like "since ~{{time}}", use the "Incident
-started at" clock time above for that - NOT the duration in minutes.
-
-Respond STRICTLY in the required JSON format, with fields "subject" and
-"body" only. The body should read as a finished message ready to send, not
-a template.
+Respond STRICTLY in JSON format with fields "subject" and "body". The body must be a final, clean, ready-to-send text.
 """
 
 
