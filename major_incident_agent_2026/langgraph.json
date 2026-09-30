@@ -1,0 +1,5 @@
+{
+  "dependencies": ["."],
+  "graphs": { "mia": "./app/orchestrator/studio.py:graph" },
+  "env": ".env"
+}

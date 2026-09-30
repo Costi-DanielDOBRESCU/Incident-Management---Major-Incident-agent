@@ -1,0 +1,12 @@
+{
+  "cluster": {
+    "cluster_id": "CL-TEST-001",
+    "ticket_ids": ["INC-10021","INC-10022","INC-10023","INC-10024","INC-10025"],
+    "centroid_similarity": 1.0,
+    "service_guess": "Internal Portal",
+    "window_start": "2026-08-01T23:34:17Z",
+    "window_end": "2026-08-01T23:43:41Z",
+    "ticket_count": 5
+  },
+  "summaries": ["Portal login redirect loop", "Cannot log in to internal portal"]
+}

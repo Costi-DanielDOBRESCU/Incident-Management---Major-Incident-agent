@@ -1,6 +1,7 @@
 # venv
 venv/
 .venv/
+venv313/
 env/
 
 # python
@@ -31,3 +32,13 @@ app/data/audit_log.jsonl
 
 #config.py
 app/config.py
+
+# LangGraph API
+.langgraph_api/
+
+# output-uri generate la teste
+output/
+
+# backup-uri / dump-uri locale
+requirements_old.txt
+python_code.txt

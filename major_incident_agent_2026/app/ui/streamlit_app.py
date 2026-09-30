@@ -1,58 +1,79 @@
 """
-UI (Streamlit) pentru demonstrarea fluxului MIA end-to-end - REDESIGN v7.
+UI (Streamlit) pentru demonstrarea fluxului MIA end-to-end - INTEGRAT CU LANGGRAPH SERVER.
 
-Restructurare completa fata de versiunile anterioare, la cererea explicita a
-stakeholder-ului (principii UI/UX inspirate din Material Design / MUI
-stepper - https://mui.com/material-ui/all-components/):
+Integrare cu LangGraph:
+- Graful NU mai ruleaza in procesul Streamlit. Ruleaza pe serverul `langgraph dev`
+  (http://127.0.0.1:2024), iar UI-ul il apeleaza prin `langgraph_sdk`.
+- Astfel, tot ce faci in Streamlit apare live in LangGraph Studio (thread-ul curent).
+- Starea vine de la server ca dict-uri JSON (nu obiecte Pydantic).
+- Punctele de Human-in-the-Loop folosesc interrupt() + resume prin `command={"resume": ...}`.
 
-1. Flux tip STEPPER: 6 pasi liniari, fiecare cu: (a) explicatie clara a
-   nodului agentic care ruleaza si ce face, (b) buton de rulare a nodului,
-   (c) afisarea rezultatului primit, (d) navigare Next/Back catre pasul
-   urmator - NU mai multe clustere/carduri afisate simultan, fara flux clar.
-2. Eliminat sliderul liber pe tot setul de 330 tichete si dropdown-ul de
-   preset ca elemente disparate - inlocuite cu o singura selectie de scenariu
-   in Pasul 1, urmata de o VIZUALIZARE LIVE a sosirii tichetelor (populate
-   treptat intr-un tabel, cu delay), nu instantaneu.
-3. Design profesional pastrat pe tot parcursul (paleta neutra, tipografie
-   Inter, badge-uri functionale pentru severitate/status, fara emoji) -
-   mostenit din v5, extins acum cu un header de tip stepper (indicator de
-   progres pe 6 pasi).
-
-NOTA (limitare Streamlit vs. MUI real): MUI e o libraria React - nu poate fi
-folosita literal intr-o aplicatie Streamlit (Python). Acest fisier
-reproduce vizual principiile stepper-ului Material (indicator de progres,
-un pas activ, continut clar per pas), construit manual din CSS/HTML, nu
-importat ca atare. Discutat si confirmat cu userul ca varianta aleasa
-(varianta A din cele 3 propuse).
-
-Rulare: `python -m streamlit run app/ui/streamlit_app.py`
+Pornire (2 terminale, cu venv activ):
+  1) langgraph dev
+  2) python -m streamlit run app/ui/streamlit_app.py
 """
 
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 
 import streamlit as st
+from langgraph_sdk import get_sync_client
 
-from app.agents.assessment_agent import AssessmentError, assess_incident
-from app.agents.communication_agent import CommunicationError, generate_communication
 from app.config import get_settings
 from app.detection.build_cluster import build_incident_cluster
 from app.detection.clustering import cluster_similar_tickets
 from app.detection.embeddings import create_embedding
 from app.detection.similarity import calculate_similarity_matrix
 from app.ingestion.mock_jira_api import DEMO_MAJOR_INCIDENTS, fetch_tickets
-from app.models.schemas import MajorIncident
 
 st.set_page_config(page_title="Major Incident Agent", layout="wide")
 
 settings = get_settings()
 
+LANGGRAPH_URL = "http://127.0.0.1:2024"
+GRAPH_NAME = "mia"  # cheia din langgraph.json -> "graphs"
+
 
 # ---------------------------------------------------------------------------
-# Stil vizual: consola tehnica, paleta neutra, tipografie Inter, plus header
-# de tip stepper (indicator de progres pe 6 pasi).
+# Client LangGraph Server
+# ---------------------------------------------------------------------------
+@st.cache_resource
+def get_client():
+    return get_sync_client(url=LANGGRAPH_URL, timeout=600)
+
+
+client = get_client()
+
+
+def _run_graph(input_payload: dict | None = None, resume: dict | None = None) -> None:
+    """Porneste un run nou (input) sau reia dupa interrupt (resume), pe thread-ul curent."""
+    thread_id = st.session_state["thread_id"]
+    try:
+        if resume is not None:
+            client.runs.wait(thread_id, GRAPH_NAME, command={"resume": resume})
+        else:
+            client.runs.wait(thread_id, GRAPH_NAME, input=input_payload)
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"Eroare la apelul serverului LangGraph: {exc}")
+        st.stop()
+
+
+def _get_thread_state() -> dict:
+    """Intoarce {"values": {...}, "next": [...]} de la server pentru thread-ul curent."""
+    thread_id = st.session_state["thread_id"]
+    if not thread_id:
+        return {"values": {}, "next": []}
+    try:
+        return client.threads.get_state(thread_id)
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"Nu pot citi starea thread-ului: {exc}")
+        st.stop()
+
+
+# ---------------------------------------------------------------------------
+# Stil vizual (Console CSS)
 # ---------------------------------------------------------------------------
 st.markdown(
     """
@@ -183,7 +204,6 @@ def _severity_badge(severity: str) -> str:
 
 
 def _node_box(node_name: str, description: str) -> None:
-    """Afiseaza explicit ce nod agentic ruleaza la acest pas si ce face."""
     st.markdown(
         f'<div class="mia-node-box">'
         f'<div class="node-label">Node: {node_name}</div>'
@@ -193,9 +213,20 @@ def _node_box(node_name: str, description: str) -> None:
     )
 
 
+def _fmt_ts(value: str | None) -> str:
+    """ISO string (de la server) -> 'YYYY-MM-DD HH:MM:SS'."""
+    if not value:
+        return "N/A"
+    return str(value)[:19].replace("T", " ")
+
+
+def _fmt_clock(value: str) -> str:
+    """ISO string -> 'HH:MM:SS'."""
+    return _fmt_ts(value)[11:19]
+
+
 @st.cache_data(show_spinner=False)
 def cached_embedding(text: str) -> list[float]:
-    """Wrapper cache peste create_embedding() (Ollama)."""
     return create_embedding(text)
 
 
@@ -225,14 +256,11 @@ def _tickets_table(tickets: list[dict]) -> list[dict]:
     ]
 
 
-# ---------------------------------------------------------------------------
-# Definitia pasilor stepper-ului
-# ---------------------------------------------------------------------------
 STEPS = [
     "Sosire tichete",
     "Detectie & clustering",
     "Evaluare AI (LLM + RAG)",
-    "Aprobare umana",
+    "Aprobare humana",
     "Comunicari",
     "Sumar",
 ]
@@ -250,11 +278,8 @@ def _init_state() -> None:
         "stream_done": False,
         "detection_result": None,
         "selected_cluster_id": None,
-        "assessment_result": None,
-        "decision": None,
-        "comm_drafts": None,
-        "comm_decisions": {},
         "major_incidents": [],
+        "thread_id": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -262,15 +287,14 @@ def _init_state() -> None:
 
 
 def _reset_flow() -> None:
-    """Reseteaza flow-ul curent (dar pastreaza istoricul de decizii)."""
     for key in (
         "scenario_key", "stream_tickets", "stream_done", "detection_result",
-        "selected_cluster_id", "assessment_result", "decision",
-        "comm_drafts", "comm_decisions",
+        "selected_cluster_id"
     ):
-        st.session_state[key] = [] if key in ("stream_tickets",) else (
-            {} if key == "comm_decisions" else None if key != "stream_done" else False
+        st.session_state[key] = [] if key == "stream_tickets" else (
+            False if key == "stream_done" else None
         )
+    st.session_state["thread_id"] = None  # thread nou se creeaza la urmatoarea pornire a grafului
     st.session_state["wizard_step"] = 0
 
 
@@ -293,7 +317,12 @@ def _render_stepper_header(current: int) -> None:
 
 st.markdown('<div class="mia-kicker">Consola operare incidente</div>', unsafe_allow_html=True)
 st.title("Major Incident Agent")
-st.caption("Flux agentic pas cu pas: detectie, evaluare AI, aprobare umana, comunicare.")
+st.caption(
+    f"Flux agentic orchestrat de LangGraph Server ({LANGGRAPH_URL}). "
+    "Urmareste executia live in LangGraph Studio."
+)
+if st.session_state["thread_id"]:
+    st.caption(f"Thread curent: `{st.session_state['thread_id']}`")
 
 _render_stepper_header(st.session_state["wizard_step"])
 
@@ -306,7 +335,7 @@ if step == 0:
     st.subheader(STEPS[0])
     _node_box(
         "Ticket Intake",
-        "Simuleaza sosirea tichetelor in sistem, in ordine cronologica, "
+        "Simulează sosirea tichetelor în sistem, în ordine cronologică, "
         "exact cum ar fi ingerate dintr-un Jira real.",
     )
 
@@ -317,7 +346,7 @@ if step == 0:
         )
         chosen_key = [k for k, v in DEMO_LABELS.items() if v == chosen_label][0]
 
-        if st.button("Porneste sosirea tichetelor"):
+        if st.button("Pornește sosirea tichetelor"):
             st.session_state["scenario_key"] = chosen_key
             all_tickets = sorted(
                 fetch_tickets(ticket_keys=DEMO_MAJOR_INCIDENTS[chosen_key])["issues"],
@@ -328,7 +357,7 @@ if step == 0:
             arrived: list[dict] = []
             for i, ticket in enumerate(all_tickets, start=1):
                 arrived.append(ticket)
-                status.caption(f"Se primeste tichetul {i} din {len(all_tickets)}...")
+                status.caption(f"Se primește tichetul {i} din {len(all_tickets)}...")
                 placeholder.dataframe(_tickets_table(arrived), hide_index=True, use_container_width=True)
                 time.sleep(0.35)
             status.caption(f"Toate cele {len(all_tickets)} tichete au fost primite.")
@@ -344,28 +373,27 @@ if step == 0:
                 _reset_flow()
                 st.rerun()
         with col_b:
-            if st.button("Next: Detectie & clustering"):
+            if st.button("Next: Detecție & clustering"):
                 st.session_state["wizard_step"] = 1
                 st.rerun()
 
 # ===========================================================================
-# PASUL 2 - Detectie & clustering
+# PASUL 2 - Detecție & clustering
 # ===========================================================================
 elif step == 1:
     st.subheader(STEPS[1])
     _node_box(
         "Detection Pipeline",
-        "Calculeaza embeddings BGE-M3 pentru fiecare tichet, similaritatea "
-        "cosinus intre toate perechile, apoi grupeaza tichetele corelate "
-        "(connected components, prag "
-        f"{settings.similarity_threshold}, minim {settings.min_tickets_per_cluster} tichete/cluster).",
+        "Calculează embeddings BGE-M3, similaritatea cosinus între perechi, "
+        "apoi grupează tichetele corelate "
+        f"(prag {settings.similarity_threshold}, minim {settings.min_tickets_per_cluster} tichete/cluster).",
     )
 
     tickets = st.session_state["stream_tickets"]
 
     if st.session_state["detection_result"] is None:
-        if st.button("Ruleaza detectia"):
-            with st.spinner("Se calculeaza embeddings + similaritate..."):
+        if st.button("Rulează detecția"):
+            with st.spinner("Se calculează embeddings + similaritate..."):
                 texts = [t["fields"]["summary"] for t in tickets]
                 embeddings = [cached_embedding(text) for text in texts]
                 similarity_matrix = calculate_similarity_matrix(embeddings)
@@ -390,7 +418,7 @@ elif step == 1:
         clusters = st.session_state["detection_result"]["clusters"]
 
         if not clusters:
-            st.warning("Niciun cluster peste prag in acest scenariu.")
+            st.warning("Niciun cluster peste prag în acest scenariu.")
             if st.button("Back"):
                 st.session_state["wizard_step"] = 0
                 st.rerun()
@@ -432,129 +460,130 @@ elif step == 1:
                     st.session_state["wizard_step"] = 0
                     st.rerun()
             with col_b:
-                if st.button("Next: Evaluare AI"):
+                if st.button("Next: Evaluare AI (Pornire Graf LangGraph)"):
+                    detection = st.session_state["detection_result"]
+                    indices = detection["indices_by_cluster"][selected.cluster_id]
+                    summaries = [detection["tickets"][i]["fields"]["summary"] for i in indices]
+
+                    with st.spinner("Se creează thread-ul și rulează node_assess_incident pe server..."):
+                        thread = client.threads.create()
+                        st.session_state["thread_id"] = thread["thread_id"]
+                        _run_graph(
+                            input_payload={
+                                "cluster": selected.model_dump(mode="json"),
+                                "summaries": summaries,
+                            }
+                        )
                     st.session_state["wizard_step"] = 2
                     st.rerun()
 
 # ===========================================================================
-# PASUL 3 - Evaluare AI (LLM + RAG)
+# PASUL 3 - Evaluare AI (LLM + RAG) - Executat în LangGraph Server
 # ===========================================================================
 elif step == 2:
     st.subheader(STEPS[2])
     _node_box(
-        "Assessment Agent",
-        "Interogheaza knowledge base-ul (incidente istorice similare si "
-        "runbook-ul de severitate pentru acest serviciu, via RAG/ChromaDB), "
-        f"apoi cere modelului LLM ({settings.ollama_llm_model}) sa clasifice "
-        "severitatea si sa recomande o actiune.",
+        "Assessment Agent (node_assess_incident)",
+        "Nodul din LangGraph interoghează RAG/ChromaDB și LLM Ollama pentru clasificare severitate "
+        "și candidat Incident Major.",
     )
 
-    detection = st.session_state["detection_result"]
-    cluster = next(c for c in detection["clusters"] if c.cluster_id == st.session_state["selected_cluster_id"])
-    indices = detection["indices_by_cluster"][cluster.cluster_id]
-    summaries = [detection["tickets"][i]["fields"]["summary"] for i in indices]
+    thread_state = _get_thread_state()
+    assessment = thread_state["values"].get("assessment")
 
-    if st.session_state["assessment_result"] is None:
-        if st.button("Ruleaza evaluarea"):
-            with st.spinner("Assessment Agent evalueaza clusterul..."):
-                try:
-                    st.session_state["assessment_result"] = assess_incident(cluster, summaries)
-                except AssessmentError as exc:
-                    st.session_state["assessment_result"] = exc
-            st.rerun()
-    else:
-        result = st.session_state["assessment_result"]
-        if isinstance(result, AssessmentError):
-            st.error(f"Eroare Assessment Agent: {result}")
-            if st.button("Reincearca"):
-                st.session_state["assessment_result"] = None
+    if assessment:
+        st.markdown(
+            f'<div class="mia-meta">'
+            f'{_severity_badge(assessment["estimated_severity"])}'
+            f'&nbsp;&nbsp;Candidat Major Incident: <strong>'
+            f'{"da" if assessment["is_major_incident_candidate"] else "nu"}</strong>'
+            f'&nbsp;&nbsp;Confidence: <strong>{assessment["confidence"]:.2f}</strong>'
+            f'&nbsp;&nbsp;Acțiune recomandată: '
+            f'<span class="mia-mono">{assessment["recommended_action"]}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        with st.expander("Raționament și surse RAG"):
+            st.write(assessment["reasoning"])
+            st.caption(f"Surse: {', '.join(assessment['rag_sources'])}")
+
+        col_a, col_b = st.columns([1, 5])
+        with col_a:
+            if st.button("Back"):
+                st.session_state["wizard_step"] = 1
                 st.rerun()
-        else:
-            st.markdown(
-                f'<div class="mia-meta">'
-                f'{_severity_badge(result.estimated_severity)}'
-                f'&nbsp;&nbsp;Candidat Major Incident: <strong>'
-                f'{"da" if result.is_major_incident_candidate else "nu"}</strong>'
-                f'&nbsp;&nbsp;Confidence: <strong>{result.confidence:.2f}</strong>'
-                f'&nbsp;&nbsp;Actiune recomandata: '
-                f'<span class="mia-mono">{result.recommended_action}</span>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-            with st.expander("Rationament si surse RAG"):
-                st.write(result.reasoning)
-                st.caption(f"Surse: {', '.join(result.rag_sources)}")
-
-            col_a, col_b = st.columns([1, 5])
-            with col_a:
-                if st.button("Back"):
-                    st.session_state["wizard_step"] = 1
-                    st.rerun()
-            with col_b:
-                if st.button("Next: Aprobare umana"):
-                    st.session_state["wizard_step"] = 3
-                    st.rerun()
+        with col_b:
+            if st.button("Next: Aprobare umană"):
+                st.session_state["wizard_step"] = 3
+                st.rerun()
+    else:
+        st.info("Se procesează de către LangGraph...")
+        if st.button("Reîncearcă pasul"):
+            st.rerun()
 
 # ===========================================================================
-# PASUL 4 - Aprobare umana (human-in-the-loop)
+# PASUL 4 - Aprobare umană (HITL #1 via LangGraph interrupt)
 # ===========================================================================
 elif step == 3:
     st.subheader(STEPS[3])
     _node_box(
-        "Human-in-the-loop",
-        "Declararea unui Major Incident necesita aprobare umana obligatorie "
-        "(doc. sectiunea 10) - recomandarea AI-ului de mai sus e o propunere, "
-        "nu o decizie automata.",
+        "Human-in-the-loop #1 (node_human_review_incident)",
+        "Graful LangGraph s-a întrerupt nativ (interrupt) și așteaptă o decizie umană "
+        "transmisă prin resume.",
     )
 
-    result = st.session_state["assessment_result"]
-    cluster = next(
-        c for c in st.session_state["detection_result"]["clusters"]
-        if c.cluster_id == st.session_state["selected_cluster_id"]
-    )
+    thread_state = _get_thread_state()
+    values = thread_state["values"]
+    pending_nodes = thread_state.get("next") or []
+    assessment = values.get("assessment")
+    user_approved = values.get("user_approved_incident")
 
-    st.markdown(
-        f'<div class="mia-meta">Recomandare AI: {_severity_badge(result.estimated_severity)} '
-        f'&nbsp;&nbsp;actiune: <span class="mia-mono">{result.recommended_action}</span></div>',
-        unsafe_allow_html=True,
-    )
+    if assessment:
+        st.markdown(
+            f'<div class="mia-meta">Recomandare AI: {_severity_badge(assessment["estimated_severity"])} '
+            f'&nbsp;&nbsp;acțiune: <span class="mia-mono">{assessment["recommended_action"]}</span></div>',
+            unsafe_allow_html=True,
+        )
 
-    if st.session_state["decision"] is None:
+    if user_approved is None and not pending_nodes:
+        # Graful s-a incheiat fara sa ajunga la HITL (assessment: nu e candidat)
+        st.info("Evaluarea nu a propus Major Incident - graful s-a încheiat fără aprobare umană.")
+        col_a, col_b = st.columns([1, 5])
+        with col_a:
+            if st.button("Back"):
+                st.session_state["wizard_step"] = 2
+                st.rerun()
+        with col_b:
+            if st.button("Next: Sumar"):
+                st.session_state["wizard_step"] = 5
+                st.rerun()
+
+    elif user_approved is None:
         col_a, col_b = st.columns(2)
         with col_a:
-            if st.button("Aproba Major Incident"):
-                decision = MajorIncident(
-                    incident_id=f"MI-{cluster.cluster_id}",
-                    cluster_id=cluster.cluster_id,
-                    status="Declared",
-                    severity=result.estimated_severity,
-                    declared_by="demo_user",
-                    declared_at=datetime.now(timezone.utc),
-                    root_cause_suspected=result.reasoning[:200],
-                )
-                st.session_state["decision"] = decision
-                st.session_state["major_incidents"].append(decision)
+            if st.button("Aprobă Major Incident"):
+                with st.spinner("Se transmite decizia către LangGraph (resume)..."):
+                    _run_graph(resume={"approved": True})
+                mi = _get_thread_state()["values"].get("major_incident")
+                if mi:
+                    st.session_state["major_incidents"].append(mi)
                 st.rerun()
         with col_b:
             if st.button("Respinge"):
-                decision = MajorIncident(
-                    incident_id=f"MI-{cluster.cluster_id}",
-                    cluster_id=cluster.cluster_id,
-                    status="Rejected",
-                    severity=result.estimated_severity,
-                    declared_by="demo_user",
-                    declared_at=datetime.now(timezone.utc),
-                )
-                st.session_state["decision"] = decision
-                st.session_state["major_incidents"].append(decision)
+                with st.spinner("Se transmite respingerea către LangGraph (resume)..."):
+                    _run_graph(resume={"approved": False, "reason": "Respins manual"})
+                mi = _get_thread_state()["values"].get("major_incident")
+                if mi:
+                    st.session_state["major_incidents"].append(mi)
                 st.rerun()
     else:
-        decision = st.session_state["decision"]
-        status_class = "declared" if decision.status == "Declared" else "rejected"
+        status_label = "Declared" if user_approved else "Rejected"
+        status_class = "declared" if user_approved else "rejected"
+
         st.markdown(
             f'<div class="mia-meta">'
-            f'<span class="mia-status {status_class}">{decision.status}</span>'
-            f'&nbsp;&nbsp;de {decision.declared_by} la {decision.declared_at:%H:%M:%S}'
+            f'<span class="mia-status {status_class}">{status_label}</span>'
+            f'&nbsp;&nbsp;procesat și înregistrat în LangGraph State'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -564,67 +593,51 @@ elif step == 3:
                 st.session_state["wizard_step"] = 2
                 st.rerun()
         with col_b:
-            if st.button("Next: Comunicari"):
+            if st.button("Next: Comunicări"):
                 st.session_state["wizard_step"] = 4
                 st.rerun()
 
 # ===========================================================================
-# PASUL 5 - Comunicari
+# PASUL 5 - Comunicări (HITL #2 via LangGraph interrupt)
 # ===========================================================================
 elif step == 4:
     st.subheader(STEPS[4])
 
-    decision = st.session_state["decision"]
+    thread_state = _get_thread_state()
+    values = thread_state["values"]
+    user_approved = values.get("user_approved_incident")
 
-    if decision.status == "Rejected":
-        st.info("Incidentul a fost respins - nu se genereaza comunicari.")
+    if user_approved is not True:
+        st.info("Nu există comunicări de aprobat - incidentul nu a fost declarat.")
         if st.button("Next: Sumar"):
             st.session_state["wizard_step"] = 5
             st.rerun()
     else:
         _node_box(
-            "Communication Agent",
-            "Interogheaza template-urile de comunicare relevante per audienta "
-            "(RAG), apoi cere LLM-ului sa redacteze mesajele pentru end users "
-            "si management.",
+            "Communication Agent (node_generate_communications & HITL #2)",
+            "LangGraph a generat comunicatele și a întrerupt execuția (node_human_review_communication) "
+            "așteptând aprobarea finală pe audiențe.",
         )
 
-        result = st.session_state["assessment_result"]
-        cluster = next(
-            c for c in st.session_state["detection_result"]["clusters"]
-            if c.cluster_id == st.session_state["selected_cluster_id"]
-        )
+        drafts = values.get("communication_drafts", {})
+        comm_approvals = values.get("user_approved_communications", {})
 
-        if st.session_state["comm_drafts"] is None:
-            if st.button("Genereaza comunicarile"):
-                with st.spinner("Communication Agent genereaza draft-urile..."):
-                    drafts: dict[str, object] = {}
-                    for audience in ("end_users", "management"):
-                        try:
-                            drafts[audience] = generate_communication(decision, result, cluster, audience)
-                        except CommunicationError as exc:
-                            drafts[audience] = exc
-                    st.session_state["comm_drafts"] = drafts
-                st.rerun()
-        else:
-            for audience, draft in st.session_state["comm_drafts"].items():
+        if drafts:
+            for audience, draft in drafts.items():
                 label = "End users" if audience == "end_users" else "Management"
                 with st.container(border=True):
                     st.markdown(f'<div class="mia-comm-label">{label}</div>', unsafe_allow_html=True)
-                    if isinstance(draft, CommunicationError):
-                        st.error(f"Eroare Communication Agent: {draft}")
-                        continue
+                    st.markdown(f"**{draft['subject']}**")
+                    st.write(draft["body"])
+                    st.caption(f"Surse: {', '.join(draft['rag_sources'])}")
 
-                    st.markdown(f"**{draft.subject}**")
-                    st.write(draft.body)
-                    st.caption(f"Surse: {', '.join(draft.rag_sources)}")
-
-                    if audience not in st.session_state["comm_decisions"]:
-                        if st.button("Aproba comunicarea", key=f"approve_comm_{audience}"):
-                            st.session_state["comm_decisions"][audience] = "Approved"
-                            st.rerun()
-                    else:
-                        st.markdown('<span class="mia-status approved">Aprobata</span>', unsafe_allow_html=True)
+            if not comm_approvals:
+                if st.button("Aprobă și Finalizează Comunicările"):
+                    with st.spinner("Se confirmă aprobarea comunicatelor în LangGraph..."):
+                        _run_graph(resume={"approved_users": True, "approved_mgmt": True})
+                    st.rerun()
+            else:
+                st.markdown('<span class="mia-status approved">Comunicări Aprobate</span>', unsafe_allow_html=True)
 
             col_a, col_b = st.columns([1, 5])
             with col_a:
@@ -635,6 +648,10 @@ elif step == 4:
                 if st.button("Next: Sumar"):
                     st.session_state["wizard_step"] = 5
                     st.rerun()
+        else:
+            st.warning("Draft-urile de comunicare se generează...")
+            if st.button("Reîncarcă"):
+                st.rerun()
 
 # ===========================================================================
 # PASUL 6 - Sumar
@@ -642,50 +659,64 @@ elif step == 4:
 elif step == 5:
     st.subheader(STEPS[5])
 
-    decision = st.session_state["decision"]
-    result = st.session_state["assessment_result"]
-    cluster = next(
-        c for c in st.session_state["detection_result"]["clusters"]
-        if c.cluster_id == st.session_state["selected_cluster_id"]
-    )
+    values = _get_thread_state()["values"]
+
+    cluster = values.get("cluster")
+    assessment = values.get("assessment")
+    user_approved = values.get("user_approved_incident")
+    comm_approvals = values.get("user_approved_communications", {})
+    final_status = values.get("final_status")
 
     with st.container(border=True):
-        st.markdown(f"**Scenariu:** {DEMO_LABELS[st.session_state['scenario_key']]}")
-        st.markdown(f"**Cluster:** `{cluster.cluster_id}` \u2014 {cluster.service_guess} ({cluster.ticket_count} tichete)")
-        st.markdown(
-            f"**Evaluare AI:** {_severity_badge(result.estimated_severity)} "
-            f"&nbsp;actiune recomandata: `{result.recommended_action}`",
-            unsafe_allow_html=True,
-        )
-        status_class = "declared" if decision.status == "Declared" else "rejected"
-        st.markdown(
-            f'**Decizie umana:** <span class="mia-status {status_class}">{decision.status}</span>',
-            unsafe_allow_html=True,
-        )
-        if decision.status == "Declared" and st.session_state["comm_drafts"]:
-            approved = list(st.session_state["comm_decisions"].keys())
-            st.markdown(f"**Comunicari aprobate:** {', '.join(approved) if approved else 'niciuna inca'}")
+        if cluster:
+            st.markdown(
+                f"**Cluster:** `{cluster['cluster_id']}` \u2014 {cluster['service_guess']} "
+                f"({cluster['ticket_count']} tichete)"
+            )
 
-    if st.button("Incepe un incident nou"):
+        if assessment:
+            st.markdown(
+                f"**Evaluare AI:** {_severity_badge(assessment['estimated_severity'])} "
+                f"&nbsp;acțiune recomandată: `{assessment['recommended_action']}`",
+                unsafe_allow_html=True,
+            )
+
+        if user_approved is None:
+            st.markdown("**Decizie umană:** nu a fost necesară (nu e candidat Major Incident)")
+        else:
+            status_label = "Declared" if user_approved else "Rejected"
+            status_class = "declared" if user_approved else "rejected"
+            st.markdown(
+                f'**Decizie umană:** <span class="mia-status {status_class}">{status_label}</span>',
+                unsafe_allow_html=True,
+            )
+
+        if comm_approvals:
+            approved_list = [k for k, v in comm_approvals.items() if v]
+            st.markdown(f"**Comunicări aprobate:** {', '.join(approved_list) or 'niciuna'}")
+
+        st.markdown(f"**LangGraph State Status:** `{final_status}`")
+
+    if st.button("Începe un incident nou"):
         _reset_flow()
         st.rerun()
 
 # ---------------------------------------------------------------------------
-# Istoric decizii - persistent, vizibil indiferent de pasul curent
+# Istoric decizii - vizibil indiferent de pasul curent
 # ---------------------------------------------------------------------------
 st.divider()
-st.subheader("Istoric decizii (sesiunea curenta)")
+st.subheader("Istoric decizii (sesiunea curentă)")
 history = st.session_state["major_incidents"]
 if not history:
-    st.caption("Nicio decizie inregistrata inca.")
+    st.caption("Nicio decizie înregistrată încă.")
 else:
     history_rows = [
         {
-            "Incident": mi.incident_id,
-            "Status": mi.status,
-            "Severitate": mi.severity,
-            "Decis de": mi.declared_by,
-            "Data/ora (UTC)": mi.declared_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "Incident": mi["incident_id"],
+            "Status": mi["status"],
+            "Severitate": mi["severity"],
+            "Decis de": mi["declared_by"],
+            "Data/ora (UTC)": _fmt_ts(mi.get("declared_at")),
         }
         for mi in reversed(history)
     ]
