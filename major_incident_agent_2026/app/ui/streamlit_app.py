@@ -15,9 +15,9 @@ Pornire (2 terminale, cu venv activ):
 
 from __future__ import annotations
 
-import time
 from datetime import datetime
 
+import httpx
 import streamlit as st
 from langgraph_sdk import get_sync_client
 
@@ -26,7 +26,7 @@ from app.detection.build_cluster import build_incident_cluster
 from app.detection.clustering import cluster_similar_tickets
 from app.detection.embeddings import create_embedding
 from app.detection.similarity import calculate_similarity_matrix
-from app.ingestion.mock_jira_api import DEMO_MAJOR_INCIDENTS, fetch_tickets
+from app.ingestion import ticket_store
 
 st.set_page_config(page_title="Major Incident Agent", layout="wide")
 
@@ -34,6 +34,9 @@ settings = get_settings()
 
 LANGGRAPH_URL = "http://127.0.0.1:2024"
 GRAPH_NAME = "mia"  # cheia din langgraph.json -> "graphs"
+MOCK_URL = f"http://127.0.0.1:{settings.mock_jira_port}"
+
+ticket_store.init_db()
 
 
 # ---------------------------------------------------------------------------
@@ -265,11 +268,6 @@ STEPS = [
     "Sumar",
 ]
 
-DEMO_LABELS: dict[str, str] = {
-    key: f"Demo: {key.replace('_', ' ').title()}" for key in DEMO_MAJOR_INCIDENTS
-}
-
-
 def _init_state() -> None:
     defaults = {
         "wizard_step": 0,
@@ -315,6 +313,58 @@ def _render_stepper_header(current: int) -> None:
     st.markdown(f'<div class="mia-stepper">{"".join(cells)}</div>', unsafe_allow_html=True)
 
 
+@st.fragment(run_every=2)
+def _live_tickets_view() -> None:
+    """Tabelul cu tichete, reimprospatat automat la 2s."""
+    rows = ticket_store.list_tickets(limit=200)
+    st.caption(f"{ticket_store.count_tickets()} tichete în baza locală (actualizare automată la 2s, cele mai noi primele)")
+    if rows:
+        st.dataframe(
+            [
+                {
+                    "ID": r["key"],
+                    "Ora (UTC)": r["created"][11:19],
+                    "Serviciu": r["service"],
+                    "Prioritate": r["priority"],
+                    "Rezumat": r["summary"],
+                }
+                for r in rows
+            ],
+            hide_index=True,
+            use_container_width=True,
+        )
+    else:
+        st.info("Niciun tichet încă. Pornește ingestorul și un incident din panoul Simulator.")
+
+
+with st.sidebar:
+    st.header("Simulator (Mock Jira)")
+    try:
+        scenarios = httpx.get(f"{MOCK_URL}/mock/scenarios", timeout=2).json()
+    except httpx.HTTPError:
+        scenarios = None
+        st.warning(f"Mock Jira nu răspunde la {MOCK_URL}. Pornește-l cu uvicorn.")
+
+    if scenarios:
+        scenario = st.selectbox(
+            "Scenariu de injectat",
+            options=list(scenarios.keys()),
+            format_func=lambda k: f"{k.replace('_', ' ').title()} ({scenarios[k]} tichete)",
+        )
+        interval = st.number_input("Secunde între tichete", min_value=0.0, max_value=60.0, value=3.0, step=0.5)
+        if st.button("Pornește incident"):
+            httpx.post(f"{MOCK_URL}/mock/replay", json={"scenario": scenario, "interval_seconds": interval}, timeout=5)
+            st.toast(f"Replay pornit: {scenario}")
+        if st.button("Oprește replay"):
+            httpx.post(f"{MOCK_URL}/mock/stop", timeout=5)
+        if st.button("Golește mock + tabel local"):
+            httpx.post(f"{MOCK_URL}/mock/reset", timeout=5)
+            ticket_store.reset_db()
+            st.toast("Mock și tabelul local au fost golite.")
+            st.rerun()
+    st.caption("Ingestorul rulează separat: python -m app.ingestion.ingestor")
+
+
 st.markdown('<div class="mia-kicker">Consola operare incidente</div>', unsafe_allow_html=True)
 st.title("Major Incident Agent")
 st.caption(
@@ -334,48 +384,21 @@ step = st.session_state["wizard_step"]
 if step == 0:
     st.subheader(STEPS[0])
     _node_box(
-        "Ticket Intake",
-        "Simulează sosirea tichetelor în sistem, în ordine cronologică, "
-        "exact cum ar fi ingerate dintr-un Jira real.",
+        "Ticket Intake (live)",
+        "Tichetele sosesc în timp real prin API-ul Jira, sunt preluate de ingestor și salvate "
+        "într-un tabel local. Nu selectezi nimic: pornește incidente din panoul Simulator (stânga).",
     )
 
-    if not st.session_state["stream_done"]:
-        chosen_label = st.selectbox(
-            "Alege un scenariu de incident pentru redare",
-            options=list(DEMO_LABELS.values()),
-        )
-        chosen_key = [k for k, v in DEMO_LABELS.items() if v == chosen_label][0]
+    _live_tickets_view()
 
-        if st.button("Pornește sosirea tichetelor"):
-            st.session_state["scenario_key"] = chosen_key
-            all_tickets = sorted(
-                fetch_tickets(ticket_keys=DEMO_MAJOR_INCIDENTS[chosen_key])["issues"],
-                key=_ticket_created_at,
-            )
-            placeholder = st.empty()
-            status = st.empty()
-            arrived: list[dict] = []
-            for i, ticket in enumerate(all_tickets, start=1):
-                arrived.append(ticket)
-                status.caption(f"Se primește tichetul {i} din {len(all_tickets)}...")
-                placeholder.dataframe(_tickets_table(arrived), hide_index=True, use_container_width=True)
-                time.sleep(0.35)
-            status.caption(f"Toate cele {len(all_tickets)} tichete au fost primite.")
-            st.session_state["stream_tickets"] = arrived
-            st.session_state["stream_done"] = True
-            st.rerun()
-    else:
-        st.caption(f"{len(st.session_state['stream_tickets'])} tichete primite din scenariul ales.")
-        st.dataframe(_tickets_table(st.session_state["stream_tickets"]), hide_index=True, use_container_width=True)
-        col_a, col_b = st.columns([1, 5])
-        with col_a:
-            if st.button("Reia"):
-                _reset_flow()
-                st.rerun()
-        with col_b:
-            if st.button("Next: Detecție & clustering"):
-                st.session_state["wizard_step"] = 1
-                st.rerun()
+    n_tickets = ticket_store.count_tickets()
+    if st.button("Next: Detecție & clustering", disabled=n_tickets == 0):
+        # Snapshot al tichetelor din tabel, in ordine cronologica, in formatul Jira folosit mai departe
+        st.session_state["stream_tickets"] = ticket_store.list_raw_issues()
+        st.session_state["stream_done"] = True
+        st.session_state["detection_result"] = None
+        st.session_state["wizard_step"] = 1
+        st.rerun()
 
 # ===========================================================================
 # PASUL 2 - Detecție & clustering

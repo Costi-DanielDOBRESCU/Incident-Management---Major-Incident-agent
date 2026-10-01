@@ -136,6 +136,15 @@ def list_tickets(limit: int = 200, db_path: Optional[Path] = None) -> list[dict[
     return [dict(r) for r in rows]
 
 
+def list_raw_issues(limit: int = 1000, db_path: Optional[Path] = None) -> list[dict[str, Any]]:
+    """Issue-urile Jira complete, in ordine cronologica (pentru detectie/clustering)."""
+    with _connect(db_path) as conn:
+        rows = conn.execute(
+            "SELECT raw_json FROM tickets ORDER BY created_ts ASC LIMIT ?", (limit,)
+        ).fetchall()
+    return [json.loads(r["raw_json"]) for r in rows]
+
+
 def count_tickets(db_path: Optional[Path] = None) -> int:
     with _connect(db_path) as conn:
         return conn.execute("SELECT COUNT(*) AS n FROM tickets").fetchone()["n"]
