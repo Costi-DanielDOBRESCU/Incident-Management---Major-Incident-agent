@@ -6,10 +6,13 @@ Mock Jira LIVE: tichetele "sosesc" in timp real, nu sunt servite dintr-un fisier
 - Store in memorie cu tichetele primite. `created` = momentul primirii (ca in Jira real).
 - GET  /rest/api/2/search?since=&limit=  -> acelasi format ca mock-ul static ({"total", "issues"}).
 - POST /rest/api/2/issue                 -> creeaza un tichet (ca in Jira real).
-- POST /mock/replay                      -> simulator: reda un scenariu tichet cu tichet.
-- POST /mock/stop                        -> opreste replay-urile in curs.
-- POST /mock/reset                       -> opreste replay-urile si goleste store-ul.
-- GET  /mock/scenarios, /mock/status, /health
+- POST /mock/start                      -> porneste fluxul automat de tichete (idempotent).
+- POST /mock/reset                      -> opreste fluxul si goleste store-ul.
+- GET  /mock/status, /health
+
+Simulatorul emite tichete la intervale de ~TICKET_INTERVAL_SECONDS, in ordine aleatorie:
+la fiecare pas alege o categorie aleatorie (dintre cele care mai au tichete), apoi un tichet
+aleatoriu din ea. Niciun tichet nu e emis de doua ori pe parcursul unui flux.
 
 mock_jira_api.py (static) ramane neschimbat - il folosesc testele existente.
 
@@ -20,12 +23,13 @@ Rulare (din radacina proiectului, cu venv activ):
 from __future__ import annotations
 
 import asyncio
+import random
 import threading
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from fastapi import BackgroundTasks, Body, FastAPI, HTTPException, Query
-from pydantic import BaseModel, Field
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
+from pydantic import BaseModel
 
 from app.ingestion.mock_jira_api import (
     DEMO_MAJOR_INCIDENTS,
@@ -40,12 +44,19 @@ app = FastAPI(
 )
 
 # ---------------------------------------------------------------------------
+# Parametri simulator (modifica aici pentru teste)
+# ---------------------------------------------------------------------------
+TICKET_INTERVAL_SECONDS = 5.0    # intervalul mediu dintre tichete
+INTERVAL_JITTER_SECONDS = 2.0    # variatie aleatorie +/- (0 = interval fix)
+
+# ---------------------------------------------------------------------------
 # Store in memorie
 # ---------------------------------------------------------------------------
 _lock = threading.Lock()
 _store: list[dict[str, Any]] = []
 _generation = 0          # creste la /mock/stop si /mock/reset -> replay-urile vechi se opresc
-_active_replays = 0
+_stream_state = "idle"  # idle | running | finished
+_remaining = 0
 _key_counter = 90000     # chei generate pentru tichete create prin POST /issue
 
 
@@ -130,67 +141,58 @@ def create_issue(body: NewIssue) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Simulator
 # ---------------------------------------------------------------------------
-class ReplayRequest(BaseModel):
-    scenario: Optional[str] = Field(default=None, description="Cheie din /mock/scenarios")
-    ticket_keys: Optional[list[str]] = Field(default=None, description="Alternativ: lista explicita de chei")
-    interval_seconds: float = Field(default=1.5, ge=0.0, le=60.0)
+def _build_pool() -> dict[str, list[dict[str, Any]]]:
+    """Categorie -> lista de tichete (categoriile = grupurile din DEMO_MAJOR_INCIDENTS)."""
+    by_key = {i["key"]: i for i in _load_issues()}
+    pool: dict[str, list[dict[str, Any]]] = {}
+    for category, keys in DEMO_MAJOR_INCIDENTS.items():
+        issues = [by_key[k] for k in keys if k in by_key]
+        if issues:
+            pool[category] = issues
+    return pool
 
 
-async def _replay(issues: list[dict[str, Any]], interval: float, generation: int) -> None:
-    global _active_replays
-    _active_replays += 1
+async def _stream(generation: int) -> None:
+    global _stream_state, _remaining
+    pool = _build_pool()
+    _remaining = sum(len(v) for v in pool.values())
     try:
-        for issue in issues:
+        while pool:
             if generation != _generation:
                 return
+            category = random.choice(list(pool))
+            issue = pool[category].pop(random.randrange(len(pool[category])))
+            if not pool[category]:
+                del pool[category]
             _add_issue(issue)
-            await asyncio.sleep(interval)
+            _remaining -= 1
+            if pool:
+                delay = TICKET_INTERVAL_SECONDS + random.uniform(-INTERVAL_JITTER_SECONDS, INTERVAL_JITTER_SECONDS)
+                await asyncio.sleep(max(0.1, delay))
     finally:
-        _active_replays -= 1
+        if generation == _generation:
+            _stream_state = "finished"
 
 
-@app.get("/mock/scenarios")
-def list_scenarios() -> dict[str, int]:
-    return {name: len(keys) for name, keys in DEMO_MAJOR_INCIDENTS.items()}
-
-
-@app.post("/mock/replay")
-def start_replay(
-    background_tasks: BackgroundTasks,
-    req: ReplayRequest = Body(...),
-) -> dict[str, Any]:
-    if req.ticket_keys:
-        keys = req.ticket_keys
-    elif req.scenario:
-        if req.scenario not in DEMO_MAJOR_INCIDENTS:
-            raise HTTPException(status_code=404, detail=f"Scenariu necunoscut: {req.scenario}")
-        keys = DEMO_MAJOR_INCIDENTS[req.scenario]
-    else:
-        raise HTTPException(status_code=422, detail="Da 'scenario' sau 'ticket_keys'.")
-
-    by_key = {i["key"]: i for i in _load_issues()}
-    issues = [by_key[k] for k in keys if k in by_key]
-    if not issues:
-        raise HTTPException(status_code=404, detail="Niciun tichet gasit pentru cheile date.")
-    issues.sort(key=lambda i: _parse_jira_datetime(i["fields"]["created"]))
-
-    background_tasks.add_task(_replay, issues, req.interval_seconds, _generation)
-    return {"started": True, "tickets": len(issues), "interval_seconds": req.interval_seconds}
-
-
-@app.post("/mock/stop")
-def stop_replays() -> dict[str, str]:
-    global _generation
-    _generation += 1
-    return {"status": "stopped"}
+@app.post("/mock/start")
+def start_stream(background_tasks: BackgroundTasks) -> dict[str, Any]:
+    """Porneste fluxul. Idempotent: daca ruleaza deja sau s-a terminat, nu face nimic."""
+    global _stream_state
+    if _stream_state != "idle":
+        return {"started": False, "state": _stream_state}
+    _stream_state = "running"
+    background_tasks.add_task(_stream, _generation)
+    return {"started": True, "state": "running"}
 
 
 @app.post("/mock/reset")
 def reset_store() -> dict[str, str]:
-    global _generation
+    global _generation, _stream_state, _remaining
     with _lock:
         _generation += 1
         _store.clear()
+    _stream_state = "idle"
+    _remaining = 0
     return {"status": "reset"}
 
 
@@ -198,7 +200,7 @@ def reset_store() -> dict[str, str]:
 def status() -> dict[str, Any]:
     with _lock:
         count = len(_store)
-    return {"tickets_in_store": count, "active_replays": _active_replays}
+    return {"state": _stream_state, "tickets_in_store": count, "remaining": _remaining}
 
 
 @app.get("/health")

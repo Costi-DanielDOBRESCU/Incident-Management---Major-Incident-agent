@@ -334,34 +334,38 @@ def _live_tickets_view() -> None:
             use_container_width=True,
         )
     else:
-        st.info("Niciun tichet încă. Pornește ingestorul și un incident din panoul Simulator.")
+        st.info("Niciun tichet încă. Verifică dacă ingestorul rulează (python -m app.ingestion.ingestor).")
+
+
+def _mock_post(path: str) -> dict | None:
+    try:
+        return httpx.post(f"{MOCK_URL}{path}", timeout=5).json()
+    except httpx.HTTPError:
+        return None
+
+
+# Pornire automata a fluxului de tichete la intrarea in aplicatie (idempotent pe server)
+if not st.session_state.get("sim_started"):
+    if _mock_post("/mock/start") is not None:
+        st.session_state["sim_started"] = True
+
+
+@st.fragment(run_every=3)
+def _simulator_status() -> None:
+    try:
+        info = httpx.get(f"{MOCK_URL}/mock/status", timeout=2).json()
+    except httpx.HTTPError:
+        st.warning(f"Mock Jira nu răspunde la {MOCK_URL}. Pornește-l cu uvicorn.")
+        return
+    labels = {"idle": "în așteptare", "running": "trimite tichete", "finished": "toate tichetele trimise"}
+    st.write(f"Stare: **{labels.get(info['state'], info['state'])}**")
+    st.caption(f"Trimise: {info['tickets_in_store']} | rămase: {info['remaining']}")
 
 
 with st.sidebar:
     st.header("Simulator (Mock Jira)")
-    try:
-        scenarios = httpx.get(f"{MOCK_URL}/mock/scenarios", timeout=2).json()
-    except httpx.HTTPError:
-        scenarios = None
-        st.warning(f"Mock Jira nu răspunde la {MOCK_URL}. Pornește-l cu uvicorn.")
-
-    if scenarios:
-        scenario = st.selectbox(
-            "Scenariu de injectat",
-            options=list(scenarios.keys()),
-            format_func=lambda k: f"{k.replace('_', ' ').title()} ({scenarios[k]} tichete)",
-        )
-        interval = st.number_input("Secunde între tichete", min_value=0.0, max_value=60.0, value=3.0, step=0.5)
-        if st.button("Pornește incident"):
-            httpx.post(f"{MOCK_URL}/mock/replay", json={"scenario": scenario, "interval_seconds": interval}, timeout=5)
-            st.toast(f"Replay pornit: {scenario}")
-        if st.button("Oprește replay"):
-            httpx.post(f"{MOCK_URL}/mock/stop", timeout=5)
-        if st.button("Golește mock + tabel local"):
-            httpx.post(f"{MOCK_URL}/mock/reset", timeout=5)
-            ticket_store.reset_db()
-            st.toast("Mock și tabelul local au fost golite.")
-            st.rerun()
+    st.caption("Tichetele sosesc automat, în ordine aleatorie, din categorii diferite.")
+    _simulator_status()
     st.caption("Ingestorul rulează separat: python -m app.ingestion.ingestor")
 
 
@@ -386,7 +390,7 @@ if step == 0:
     _node_box(
         "Ticket Intake (live)",
         "Tichetele sosesc în timp real prin API-ul Jira, sunt preluate de ingestor și salvate "
-        "într-un tabel local. Nu selectezi nimic: pornește incidente din panoul Simulator (stânga).",
+        "într-un tabel local. Fluxul pornește automat la intrarea în aplicație; tu nu selectezi nimic.",
     )
 
     _live_tickets_view()
@@ -721,6 +725,10 @@ elif step == 5:
         st.markdown(f"**LangGraph State Status:** `{final_status}`")
 
     if st.button("Începe un incident nou"):
+        # Curatare completa DOAR dupa finalizarea procesului: mock + tabel local, apoi flux nou
+        _mock_post("/mock/reset")
+        ticket_store.reset_db()
+        _mock_post("/mock/start")
         _reset_flow()
         st.rerun()
 
