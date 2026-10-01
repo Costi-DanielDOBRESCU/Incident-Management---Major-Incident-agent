@@ -350,25 +350,6 @@ if not st.session_state.get("sim_started"):
         st.session_state["sim_started"] = True
 
 
-@st.fragment(run_every=3)
-def _simulator_status() -> None:
-    try:
-        info = httpx.get(f"{MOCK_URL}/mock/status", timeout=2).json()
-    except httpx.HTTPError:
-        st.warning(f"Mock Jira nu răspunde la {MOCK_URL}. Pornește-l cu uvicorn.")
-        return
-    labels = {"idle": "în așteptare", "running": "trimite tichete", "finished": "toate tichetele trimise"}
-    st.write(f"Stare: **{labels.get(info['state'], info['state'])}**")
-    st.caption(f"Trimise: {info['tickets_in_store']} | rămase: {info['remaining']}")
-
-
-with st.sidebar:
-    st.header("Simulator (Mock Jira)")
-    st.caption("Tichetele sosesc automat, în ordine aleatorie, din categorii diferite.")
-    _simulator_status()
-    st.caption("Ingestorul rulează separat: python -m app.ingestion.ingestor")
-
-
 st.markdown('<div class="mia-kicker">Consola operare incidente</div>', unsafe_allow_html=True)
 st.title("Major Incident Agent")
 st.caption(
@@ -395,14 +376,19 @@ if step == 0:
 
     _live_tickets_view()
 
-    n_tickets = ticket_store.count_tickets()
-    if st.button("Next: Detecție & clustering", disabled=n_tickets == 0):
-        # Snapshot al tichetelor din tabel, in ordine cronologica, in formatul Jira folosit mai departe
-        st.session_state["stream_tickets"] = ticket_store.list_raw_issues()
-        st.session_state["stream_done"] = True
-        st.session_state["detection_result"] = None
-        st.session_state["wizard_step"] = 1
-        st.rerun()
+    # Butonul NU poate fi dezactivat pe baza numarului de tichete: tabelul se reimprospateaza
+    # intr-un fragment, iar restul paginii nu se reexecuta, deci starea "disabled" ar ramane veche.
+    if st.button("Next: Detecție & clustering"):
+        snapshot = ticket_store.list_raw_issues()
+        if not snapshot:
+            st.warning("Încă nu a sosit niciun tichet.")
+        else:
+            # Snapshot cronologic, in formatul Jira folosit mai departe
+            st.session_state["stream_tickets"] = snapshot
+            st.session_state["stream_done"] = True
+            st.session_state["detection_result"] = None
+            st.session_state["wizard_step"] = 1
+            st.rerun()
 
 # ===========================================================================
 # PASUL 2 - Detecție & clustering
