@@ -4,7 +4,7 @@
     "type": "post_mortem",
     "service": "VPN Gateway",
     "summary": "VPN outage caused by expired auth certificate",
-    "content": "On 2025-11-14, the VPN authentication certificate expired unexpectedly, causing all authentication attempts to fail for approximately 3 hours. Root cause: certificate renewal automation had silently failed 30 days prior. Resolution: certificate manually renewed, monitoring alert added for certificate expiry (30/14/7 day warnings). 45 tickets were raised in a 20-minute window before declaration.",
+    "content": "Date: 2025-11-14. Severity: SEV1. Duration: about 3 hours. Impact: All remote users were unable to authenticate to the VPN gateway; on-site users were unaffected. Detection: 45 tickets were raised in a 20-minute window before declaration, with symptoms such as 'cannot connect to VPN', 'authentication failing' and 'certificate validation failed'. Root cause: The VPN authentication certificate expired unexpectedly; the renewal automation had silently failed 30 days earlier. Resolution: Certificate renewed manually and the gateway service restarted. Lessons: Monitoring alerts added for certificate expiry (30/14/7 day warnings) and the renewal job now alerts on failure. Login failures that start abruptly for every remote user point to a shared component such as a certificate.",
     "tags": [
       "vpn",
       "authentication",
@@ -16,7 +16,7 @@
     "type": "post_mortem",
     "service": "Email/Exchange",
     "summary": "Exchange outage due to database corruption after failed patch",
-    "content": "A failed cumulative update left the Exchange mailbox database in an inconsistent state. Users were unable to access mailboxes for 90 minutes. Resolution: database repaired from backup, patch rollback procedure documented. 30+ correlated tickets in 15 minutes.",
+    "content": "Date: 2025-06-17. Severity: SEV2. Duration: 90 minutes. Impact: Users on one mailbox database (about 60% of mailboxes) could not open Outlook or OWA; mail for those mailboxes queued. Detection: 30+ correlated tickets in 15 minutes ('Outlook not responding', 'cannot open mailbox', 'trying to connect'). Root cause: A failed cumulative update left the Exchange mailbox database in an inconsistent state. Resolution: Database repaired from backup and remounted; patch rollback procedure documented. Lessons: Patch a pilot server first and take a snapshot before every cumulative update.",
     "tags": [
       "exchange",
       "email",
@@ -28,7 +28,7 @@
     "type": "post_mortem",
     "service": "ERP System",
     "summary": "ERP outage from database connection pool exhaustion",
-    "content": "A runaway batch job exhausted the ERP database connection pool, causing intermittent failures for all users. Resolution: connection pool limits tuned, batch job rate-limited. Declared SEV2 after 12 correlated tickets in 25 minutes.",
+    "content": "Date: 2025-09-16. Severity: SEV2. Duration: 55 minutes. Impact: Intermittent failures when posting documents and saving orders for all ERP users; warehouse scanning was also affected. Detection: Declared SEV2 after 12 correlated tickets in 25 minutes ('ERP timeouts', 'database connection error'). Root cause: A runaway batch job (open-item reconciliation) held connections and exhausted the ERP database connection pool. Resolution: Batch job killed, connection pool limits tuned, batch job rate-limited and moved outside business hours. Lessons: Alert added at 80% pool utilisation. Connection errors across all modules point to the database tier, not to a single report.",
     "tags": [
       "erp",
       "database",
@@ -40,7 +40,7 @@
     "type": "post_mortem",
     "service": "Network/Switch",
     "summary": "Data center core switch stack failure",
-    "content": "A firmware bug caused the core switch stack to fail over repeatedly, causing intermittent connectivity loss across the building for 2 hours. Resolution: firmware rolled back, vendor engaged. Declared SEV1 due to full-building impact, 60+ tickets in 10 minutes.",
+    "content": "Date: 2025-12-19. Severity: SEV1. Duration: 2 hours. Impact: Intermittent loss of wired, wifi and VoIP connectivity across the whole building. Detection: Declared SEV1 due to full-building impact, 60+ tickets in 10 minutes ('no network', 'both wifi and LAN not working'). Root cause: A firmware bug caused the core switch stack to fail over repeatedly. Resolution: Firmware rolled back to the previous version and the vendor engaged. Lessons: Stack failover test added to the patch checklist. Reports from every floor at once indicate a core component, not an access switch.",
     "tags": [
       "network",
       "switch",
@@ -52,7 +52,7 @@
     "type": "post_mortem",
     "service": "Cloud Storage",
     "summary": "Cloud storage sync outage due to provider-side incident",
-    "content": "Upstream cloud storage provider had a regional outage affecting sync services. Declared SEV2, no internal root cause. Resolution: provider status page monitored, users notified to work locally until restored. 25 tickets in 18 minutes.",
+    "content": "Date: 2025-08-26. Severity: SEV2. Duration: about 2.5 hours. Impact: File sync and uploads failed or stalled for users in EMEA; no data was lost. Detection: 25 tickets in 18 minutes ('files stuck syncing', 'web interface not loading', 503 errors). Root cause: The upstream cloud storage provider had a regional outage affecting sync services; no internal root cause. Resolution: Provider status page monitored; users told to work locally until service was restored. Lessons: Check the provider status page early, before deep internal troubleshooting, and send the 'work locally' notice quickly.",
     "tags": [
       "cloud-storage",
       "sync",
@@ -64,7 +64,7 @@
     "type": "post_mortem",
     "service": "Internal Portal",
     "summary": "Portal SSO outage due to identity provider misconfiguration",
-    "content": "A misapplied configuration change to the SSO identity provider caused a redirect loop for all portal users. Resolution: configuration reverted, change process tightened to require peer review. Declared SEV2, 20 tickets in 12 minutes.",
+    "content": "Date: 2025-12-02. Severity: SEV2. Duration: 65 minutes. Impact: All portal users were stuck in a login redirect loop. Detection: Declared SEV2, 20 tickets in 12 minutes ('portal keeps redirecting to login', 'SSO authentication failed'). Root cause: A misapplied configuration change to the SSO identity provider (wrong reply URL) caused the redirect loop. Resolution: Configuration reverted; change process tightened to require peer review for identity provider changes. Lessons: Ask first whether an identity provider change was made in the last 24 hours.",
     "tags": [
       "portal",
       "sso",
@@ -76,11 +76,175 @@
     "type": "post_mortem",
     "service": "Print Services",
     "summary": "Print server outage from Windows Print Spooler vulnerability patch",
-    "content": "An emergency security patch for the Print Spooler service caused the print server to crash repeatedly. Resolution: patched service restarted with a stability fix, vendor hotfix applied. Declared SEV3 due to limited business impact, 18 tickets in 20 minutes.",
+    "content": "Date: 2025-10-07. Severity: SEV3. Duration: about 2 hours. Impact: Printing was unavailable intermittently in several offices; business impact was limited. Detection: Declared SEV3 due to limited business impact, 18 tickets in 20 minutes ('cannot print', 'print queue stuck', 'printer offline'). Root cause: An emergency security patch for the Print Spooler service made the print server service crash repeatedly. Resolution: Patched service restarted with a stability fix and the vendor hotfix applied. Lessons: Emergency security patches go through a short pilot on one print server first.",
     "tags": [
       "print",
       "spooler",
       "windows-update"
+    ]
+  },
+  {
+    "doc_id": "PM-2025-0098",
+    "type": "post_mortem",
+    "service": "VPN Gateway",
+    "summary": "VPN slowness and disconnects from gateway session saturation",
+    "content": "Date: 2025-07-08. Severity: SEV2. Duration: 75 minutes. Impact: Remote users could connect but sessions were very slow and dropped every few minutes. Detection: 22 tickets in 18 minutes ('VPN extremely slow', 'VPN drops every few minutes', 'remote desktop over VPN unusable'). Root cause: The gateway reached its concurrent-session limit at the Monday morning peak after a remote-work policy change roughly doubled remote users. Resolution: Temporary capacity license enabled, idle-session timeout reduced and a second gateway added to the pool. Lessons: Authentication still succeeded while throughput and latency degraded, which separates a capacity problem from a certificate or RADIUS failure where login itself fails.",
+    "tags": [
+      "vpn",
+      "capacity",
+      "performance"
+    ]
+  },
+  {
+    "doc_id": "PM-2025-0111",
+    "type": "post_mortem",
+    "service": "Email/Exchange",
+    "summary": "Delayed mail delivery after anti-spam gateway update",
+    "content": "Date: 2025-08-12. Severity: SEV2. Duration: about 4 hours until the queue cleared. Impact: Org-wide delayed mail delivery with delays up to 4 hours; no messages were lost. Mailbox access stayed normal. Detection: 17 tickets in 25 minutes ('emails delayed', 'customers not receiving our emails', 'emails stuck in outbox'). Root cause: An update of the anti-spam gateway stalled the scanning engine and the queue grew to roughly 14,000 messages. Resolution: Scanning engine restarted, update rolled back and the queue drained with priority for internal mail. Lessons: Delayed delivery with normal mailbox access is a mail-flow problem, not a mailbox database outage. Add a queue length alert.",
+    "tags": [
+      "exchange",
+      "email",
+      "mail-flow",
+      "queue"
+    ]
+  },
+  {
+    "doc_id": "PM-2025-0148",
+    "type": "post_mortem",
+    "service": "Cloud Storage",
+    "summary": "Cloud storage sync stalled by internal message queue",
+    "content": "Date: 2025-10-21. Severity: SEV2. Duration: 95 minutes. Impact: Sync clients stayed on 'Syncing...' and uploads failed with error 5003 for all teams; the web interface was slow but reachable. Detection: 19 tickets in 16 minutes ('shared cloud folders not syncing', 'files stuck syncing'). Root cause: The internal sync gateway queue stalled on a malformed file-metadata message that blocked the indexing workers; the provider status page was green. Resolution: Poison message purged, workers restarted and scaled out, dead-letter queue alert added. Lessons: When the provider reports no incident, treat sync failures as an internal fault and escalate to the Cloud Platform team.",
+    "tags": [
+      "cloud-storage",
+      "sync",
+      "queue"
+    ]
+  },
+  {
+    "doc_id": "PM-2026-0011",
+    "type": "post_mortem",
+    "service": "ERP System",
+    "summary": "ERP application server crash after release with memory leak",
+    "content": "Date: 2026-01-20. Severity: SEV1. Duration: 70 minutes. Impact: ERP completely unavailable: login page returned HTTP 500 and order entry and invoicing were blocked. Detection: 15 tickets in 12 minutes ('cannot log in to ERP', 'ERP extremely slow', 'ERP application server down'). Root cause: A memory leak in release 24.3 exhausted the heap on both application nodes under the morning load and crashed the app server. Resolution: Rolled back to release 24.2 and restarted both nodes; the leak was fixed in 24.3.1. Lessons: Load test before releases and add a heap usage alert. Crashes and HTTP 500 errors point to the application tier, unlike pool exhaustion which shows database connection errors.",
+    "tags": [
+      "erp",
+      "application-server",
+      "release"
+    ]
+  },
+  {
+    "doc_id": "PM-2026-0024",
+    "type": "post_mortem",
+    "service": "Network/Switch",
+    "summary": "Branch office internet instability from degraded ISP circuit",
+    "content": "Date: 2026-02-11. Severity: SEV2. Duration: 3 hours (mitigated after 25 minutes). Impact: The Warsaw office had intermittent internet: cloud applications and Teams calls dropped every few minutes. Detection: 9 tickets in 20 minutes, all from PL-Warsaw ('branch office internet keeps dropping', 'connection drops every few minutes'). Root cause: Degraded fiber on the primary ISP circuit caused repeated link flaps. Resolution: Traffic failed over manually to the LTE backup; the ISP replaced the damaged fiber segment. Lessons: Add automatic failover and a flap-detection alert. All reports from a single site with a healthy core usually indicate the site's WAN link.",
+    "tags": [
+      "network",
+      "wan",
+      "isp",
+      "branch"
+    ]
+  },
+  {
+    "doc_id": "PM-2026-0035",
+    "type": "post_mortem",
+    "service": "Network/Switch",
+    "summary": "DHCP scope exhaustion after guest wifi onboarding",
+    "content": "Date: 2026-03-04. Severity: SEV2. Duration: 50 minutes. Impact: New devices at the Austin office could not obtain an IP address; devices with active leases kept working. Detection: 11 tickets in 14 minutes, all from US-Austin ('cannot get IP address', 'self-assigned IP address on wifi'). Root cause: The DHCP scope was exhausted after conference guests joined the guest wifi with 8-day leases. Resolution: Lease time on the guest VLAN reduced to 1 hour, scope enlarged and stale leases cleared. Lessons: Alert at 85% scope utilisation. A self-assigned 169.254.x.x address on several devices of one site is the typical signature.",
+    "tags": [
+      "network",
+      "dhcp",
+      "wifi"
+    ]
+  },
+  {
+    "doc_id": "PM-2026-0041",
+    "type": "post_mortem",
+    "service": "VPN Gateway",
+    "summary": "False alarm: VPN license activation wave declared as incident",
+    "content": "Date: 2026-03-19. Severity: declared SEV2, downgraded to SEV3 (no incident). Duration: no service impact. Impact: None. The VPN gateway was healthy (authentication success rate 99.8%). Detection: 6 tickets in 15 minutes ('unable to activate VPN license on new laptop', 'new device VPN activation error'). Root cause: A laptop refresh wave: users installing the VPN client on new devices hit the per-device activation limit. The incident was declared in error because the volume looked like an authentication degradation. Resolution: Licensing team reset activation counts and pre-staged activation in the imaging process. Lessons: Several users with the same license or activation error and unchanged gateway metrics are a request wave, not an incident. Handle it with RB-VPN-009.",
+    "tags": [
+      "vpn",
+      "licensing",
+      "false-positive",
+      "lessons-learned"
+    ]
+  },
+  {
+    "doc_id": "PM-2026-0048",
+    "type": "post_mortem",
+    "service": "Internal Portal",
+    "summary": "Portal inaccessible after TLS certificate expiry",
+    "content": "Date: 2026-04-15. Severity: SEV1. Duration: 40 minutes. Impact: Browsers blocked access to the internal portal for all users with a certificate warning (NET::ERR_CERT_DATE_INVALID). Detection: 16 tickets in 10 minutes from all sites ('portal shows security warning', 'intranet certificate error'). Root cause: The portal TLS certificate expired because the renewal reminder was sent to the mailbox of a former employee. Resolution: New certificate issued and installed. Lessons: Keep a certificate inventory with a shared owner mailbox and 30/14/7 day alerts. A certificate warning on every machine at once is a certificate expiry until proven otherwise.",
+    "tags": [
+      "portal",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "doc_id": "PM-2026-0053",
+    "type": "post_mortem",
+    "service": "ERP System",
+    "summary": "False alarm: month-end report slowness mistaken for ERP outage",
+    "content": "Date: 2026-04-30. Severity: declared SEV2, downgraded to SEV3 (no incident). Duration: about 2 hours of slow reports. Impact: Only the reporting module was slow, for the Finance department during month-end close. Detection: 7 tickets in 18 minutes, all from Finance ('ERP very slow when running reports', 'month-end report times out'). The wording resembled the earlier connection-pool incident, which led to the wrong declaration. Root cause: Month-end closing reports ran concurrently on the reporting server. ERP transaction metrics were normal and database pool utilisation was 35%. Resolution: Reporting jobs staggered and Finance asked to schedule heavy reports. Lessons: Slowness limited to the reporting module and to one department at month-end is not an outage. See RB-ERP-013.",
+    "tags": [
+      "erp",
+      "reporting",
+      "false-positive",
+      "lessons-learned"
+    ]
+  },
+  {
+    "doc_id": "PM-2026-0059",
+    "type": "post_mortem",
+    "service": "Email/Exchange",
+    "summary": "Exchange mailbox database dismounted after storage latency",
+    "content": "Date: 2026-05-06. Severity: SEV2. Duration: 105 minutes. Impact: Users on one mailbox database lost access to mail and calendar. Detection: 14 tickets in 12 minutes ('Outlook not responding', 'Outlook stuck on trying to connect', 'OWA shows an error'). Root cause: High latency on the SAN volume hosting the database caused it to dismount. This was not patch related, even though the symptoms matched PM-2025-0089. Resolution: Database moved to a healthy volume and remounted. Lessons: The same symptoms can have different causes: check database copy status and storage health before assuming a patch problem.",
+    "tags": [
+      "exchange",
+      "email",
+      "database",
+      "storage"
+    ]
+  },
+  {
+    "doc_id": "PM-2026-0063",
+    "type": "post_mortem",
+    "service": "VPN Gateway",
+    "summary": "VPN authentication failure after firewall change",
+    "content": "Date: 2026-05-27. Severity: SEV1. Duration: 55 minutes. Impact: Remote users could not authenticate; the client reported timeouts, error 691 or 'RADIUS server not responding'. Detection: 13 tickets in 15 minutes ('VPN authentication failing', 'cannot connect to corporate VPN'). Root cause: A firewall change blocked UDP 1812/1813 between the VPN gateway and the RADIUS servers. Resolution: Firewall change rolled back. Lessons: Authentication failures that begin right after a network change window call for checking recent changes first.",
+    "tags": [
+      "vpn",
+      "authentication",
+      "radius",
+      "change"
+    ]
+  },
+  {
+    "doc_id": "PM-2026-0071",
+    "type": "post_mortem",
+    "service": "Internal Portal",
+    "summary": "Portal SSO failure after identity provider signing certificate rollover",
+    "content": "Date: 2026-06-10. Severity: SEV2. Duration: 80 minutes. Impact: SSO login to the portal failed ('SAML response invalid'); other SSO applications were also affected. Detection: 18 tickets in 14 minutes ('cannot log in to the portal', 'single sign-on not working'). Root cause: The identity provider signing certificate rolled over, but the portal still trusted the old metadata. Resolution: Federation metadata refreshed on the portal; certificate rollover added to the change checklist. Lessons: SAML errors after a certificate or metadata change point to a trust mismatch, not to a user problem.",
+    "tags": [
+      "portal",
+      "sso",
+      "saml",
+      "certificate"
+    ]
+  },
+  {
+    "doc_id": "PM-2026-0077",
+    "type": "post_mortem",
+    "service": "ERP System",
+    "summary": "ERP connection pool exhausted again by month-end batch",
+    "content": "Date: 2026-06-30. Severity: SEV2. Duration: 45 minutes. Impact: Intermittent timeouts and failed saves for all ERP users during month-end close, across all modules. Detection: 11 tickets in 15 minutes ('ERP database connection error', 'cannot save in ERP - connection error'). Root cause: The month-end settlement batch ran with an unthrottled thread pool and exhausted the connection pool again, a recurrence of PM-2025-0154. Resolution: Batch killed and restarted with the rate limit; pool utilisation alert enabled. Lessons: Compare with PM-2026-0053: here transactions fail with connection errors in every module, which makes it an outage rather than slow reporting.",
+    "tags": [
+      "erp",
+      "database",
+      "connection-pool",
+      "batch"
     ]
   }
 ]

@@ -4,7 +4,7 @@
     "type": "runbook",
     "service": "VPN Gateway",
     "summary": "Severity criteria for VPN Gateway incidents",
-    "content": "SEV1: Total VPN outage, all users affected, >30 min. SEV2: Partial outage or authentication degradation affecting multiple users (3+) within a 20-minute window. SEV3: Isolated single-user VPN issue (licensing, local config). Multi-user impact within a short window is the primary signal for SEV2+.",
+    "content": "SEV1: Total VPN outage, all users affected, >30 min. SEV2: Partial outage, authentication degradation or severe slowness (tunnel drops, high latency) affecting multiple users (3+) within a 20-minute window. SEV3: Isolated single-user VPN issue (licensing, local config, hotel or public network blocking VPN ports). Multi-user impact within a short window is the primary signal for SEV2+, but the symptoms must point to a shared component (authentication service, certificate, gateway capacity). Several users with the same license or activation error after a laptop refresh is a request wave, not an incident: see RB-VPN-009. Check the gateway dashboard (active sessions, authentication success rate) before declaring.",
     "tags": [
       "vpn",
       "severity",
@@ -16,7 +16,7 @@
     "type": "runbook",
     "service": "Email/Exchange",
     "summary": "Severity criteria for Exchange/Email incidents",
-    "content": "SEV1: Full mail service outage (send+receive) org-wide. SEV2: Mailbox access issues affecting 3+ users within 15 minutes, or delayed mail delivery org-wide. SEV3: Individual mailbox issues, spam filter false positives.",
+    "content": "SEV1: Full mail service outage (send+receive) org-wide. SEV2: Mailbox access issues affecting 3+ users within 15 minutes, or delayed mail delivery org-wide. SEV3: Individual mailbox issues (quota full, corrupted Outlook profile, add-in errors after an update), spam filter false positives. Users with a full mailbox or a broken Outlook profile are not an incident even when several report it on the same day; check whether they share a mailbox database before correlating.",
     "tags": [
       "exchange",
       "severity",
@@ -28,7 +28,7 @@
     "type": "runbook",
     "service": "ERP System",
     "summary": "Severity criteria for ERP incidents",
-    "content": "SEV1: ERP fully unavailable, blocking business transactions org-wide. SEV2: Degraded performance or intermittent errors affecting 3+ users within a short window. SEV3: Single-user or single-module issue.",
+    "content": "SEV1: ERP fully unavailable, blocking business transactions org-wide. SEV2: Degraded performance or intermittent errors affecting 3+ users within a short window across more than one module or department. SEV3: Single-user or single-module issue (missing role, one slow report). Slowness limited to the reporting module during month-end close is SEV3: see RB-ERP-013.",
     "tags": [
       "erp",
       "severity",
@@ -40,7 +40,7 @@
     "type": "runbook",
     "service": "Network/Switch",
     "summary": "Severity criteria for Network/Switch incidents",
-    "content": "SEV1: Full site network outage. SEV2: Partial network degradation affecting a floor or department, 3+ correlated reports within 20 minutes. SEV3: Single connection issue.",
+    "content": "SEV1: Full site network outage. SEV2: Partial network degradation affecting a floor, department or whole site link, 3+ correlated reports within 20 minutes from the same location. SEV3: Single connection issue (one access point, one port, one room). Reports from several different sites with no common cause are normally unrelated; reports from one site with the same symptom are likely a shared network component.",
     "tags": [
       "network",
       "severity",
@@ -52,7 +52,7 @@
     "type": "runbook",
     "service": "Cloud Storage",
     "summary": "Severity criteria for Cloud Storage incidents",
-    "content": "SEV1: Complete sync/upload outage org-wide. SEV2: Degraded sync affecting multiple users/teams within a short window. SEV3: Individual quota or permission issue.",
+    "content": "SEV1: Complete sync/upload outage org-wide. SEV2: Degraded sync or inaccessible storage affecting multiple users/teams within a short window, including provider-side outages. SEV3: Individual quota or permission issue; quota and access requests that cluster at quarter end are request waves, see RB-CLOUD-017.",
     "tags": [
       "cloud-storage",
       "severity",
@@ -64,7 +64,7 @@
     "type": "runbook",
     "service": "Internal Portal",
     "summary": "Severity criteria for Internal Portal incidents",
-    "content": "SEV1: Portal fully inaccessible org-wide (SSO down). SEV2: Login issues affecting 3+ users within 15 minutes. SEV3: Cosmetic or single-user issue.",
+    "content": "SEV1: Portal fully inaccessible org-wide (SSO down or expired certificate). SEV2: Login issues affecting 3+ users within 15 minutes. SEV3: Cosmetic issues, stale content or a single-user issue. Content not refreshing for several users is a publishing or cache issue, not an outage: see RB-PORTAL-019.",
     "tags": [
       "portal",
       "severity",
@@ -76,10 +76,234 @@
     "type": "runbook",
     "service": "Print Services",
     "summary": "Severity criteria for Print Services incidents",
-    "content": "SEV1: All printers on all floors down. SEV2: All printers on a floor/department down, 3+ correlated reports. SEV3: Single printer or single-user driver issue.",
+    "content": "SEV1: All printers on all floors down. SEV2: All printers on a floor/department down, 3+ correlated reports. SEV3: Single printer or single-user driver issue, including driver errors that follow a Windows update at one site and hardware faults (toner, jams). Check whether the print server is reachable before declaring.",
     "tags": [
       "print",
       "severity",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-VPN-008",
+    "type": "runbook",
+    "service": "VPN Gateway",
+    "summary": "Triage steps for VPN authentication and gateway incidents",
+    "content": "1) Open the VPN gateway dashboard and compare the authentication success rate and active session count with the normal baseline. 2) Login fails for everyone: check certificate validity, RADIUS/identity reachability and any firewall or network change in the last 24 hours. 3) Login works but sessions are slow or drop: check concurrent sessions against the licensed limit and gateway CPU. 4) Test a login from a clean test account. Escalate to the Network Security team; for SEV1 open a bridge call. Reference: PM-2025-0117, PM-2025-0098, PM-2026-0063.",
+    "tags": [
+      "vpn",
+      "triage",
+      "authentication",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-VPN-009",
+    "type": "runbook",
+    "service": "VPN Gateway",
+    "summary": "Known non-incident pattern: VPN license activation wave",
+    "content": "Typical pattern: 3-8 tickets within 20 minutes with 'unable to activate VPN license', 'new device activation error' or 'license expired notification', usually after a laptop refresh or new-starter onboarding. Gateway authentication success rate and session count are normal, and every ticket mentions a license or activation code. This is a request wave, not an incident: do not declare. Route to the licensing team to reset activation counts and reply to users individually. Escalate to an incident only if users who were already activated lose access. Reference: PM-2026-0041.",
+    "tags": [
+      "vpn",
+      "licensing",
+      "false-positive",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-EXCH-010",
+    "type": "runbook",
+    "service": "Email/Exchange",
+    "summary": "Triage steps for Exchange mailbox access incidents",
+    "content": "1) Check the mailbox database status and copy health in the Exchange admin center. 2) Identify whether affected users share a database or server. 3) Check the last patch or change window and storage latency on the database volume. 4) Webmail also failing means the problem is server side. Escalate to the Messaging team; if more than one database is affected declare SEV1. Reference: PM-2025-0089, PM-2026-0059.",
+    "tags": [
+      "exchange",
+      "triage",
+      "database",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-EXCH-011",
+    "type": "runbook",
+    "service": "Email/Exchange",
+    "summary": "Triage steps for delayed mail delivery",
+    "content": "1) Check the transport queue length and the oldest message age. 2) Check the anti-spam gateway and its last update. 3) Run a message trace for a delayed message to see where it waits. 4) Confirm that mailbox access is normal; if it is, the issue is mail flow, not the database. 5) Prioritise internal mail while the queue drains. Escalate to the Messaging team. Reference: PM-2025-0111.",
+    "tags": [
+      "exchange",
+      "mail-flow",
+      "queue",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-ERP-012",
+    "type": "runbook",
+    "service": "ERP System",
+    "summary": "Triage steps for ERP outages and timeouts",
+    "content": "1) Open the application server health page and check both nodes. 2) HTTP 500 or crashes point to the application tier (heap, recent release); connection errors or timeouts across modules point to the database tier (connection pool utilisation, running batch jobs). 3) Check the last release or batch job schedule. 4) Ask Finance or Warehouse whether all modules are affected. Escalate to the ERP Basis team; for SEV1 notify the business owner. Reference: PM-2025-0154, PM-2026-0011, PM-2026-0077.",
+    "tags": [
+      "erp",
+      "triage",
+      "database",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-ERP-013",
+    "type": "runbook",
+    "service": "ERP System",
+    "summary": "Known non-incident patterns: month-end reports and role changes",
+    "content": "Month-end close: Finance reports 'ERP very slow when running reports', timeouts on trial balance or Excel exports for a few hours at month end. Transactions in other modules are normal and database pool utilisation is low. This is a performance request, not an outage; stagger the report jobs and inform Finance. Role changes: tickets saying 'no access to module' or 'not authorized' after team moves are access requests for the ERP security team. Do not declare an incident unless several departments report errors outside the reporting module. Reference: PM-2026-0053.",
+    "tags": [
+      "erp",
+      "reporting",
+      "false-positive",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-NET-014",
+    "type": "runbook",
+    "service": "Network/Switch",
+    "summary": "Triage steps for site network outages",
+    "content": "1) Identify the location of the reports: one site or several. 2) Whole floor or building offline for wired and wifi: check the core/distribution switch stack and its logs. 3) Internet drops while the internal network is fine: check the WAN link and ISP status, fail over to the backup circuit. 4) Devices with 169.254.x.x addresses: check DHCP scope utilisation. Escalate to the Network Operations Center; call the ISP or vendor for SEV1. Reference: PM-2025-0201, PM-2026-0024, PM-2026-0035.",
+    "tags": [
+      "network",
+      "triage",
+      "switch",
+      "dhcp",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-NET-015",
+    "type": "runbook",
+    "service": "Network/Switch",
+    "summary": "Known non-incident pattern: single access point or room wifi problems",
+    "content": "Typical pattern: 2-4 tickets from the same meeting room, kitchen or floor area about weak or dropping wifi while wired connections and other areas are fine. This points to a single access point, not a site outage. Check the access point status in the controller and restart or replace it. Not an incident unless the problem spreads to other areas or to wired connections.",
+    "tags": [
+      "network",
+      "wifi",
+      "false-positive",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-CLOUD-016",
+    "type": "runbook",
+    "service": "Cloud Storage",
+    "summary": "Triage steps for cloud storage sync and access incidents",
+    "content": "1) Check the provider status page first. 2) Provider incident: notify users to work locally (TPL-COMM-USER-005) and monitor. 3) Provider green: check the internal sync gateway queue, indexing workers and recent changes. 4) Distinguish sync failures (red cross, 'Syncing...' for hours) from quota or permission errors, which are individual. Escalate to the Cloud Platform team. Reference: PM-2025-0132, PM-2025-0148.",
+    "tags": [
+      "cloud-storage",
+      "triage",
+      "sync",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-CLOUD-017",
+    "type": "runbook",
+    "service": "Cloud Storage",
+    "summary": "Known non-incident patterns: quota and permission requests",
+    "content": "Quota exceeded: 'storage full', 'quota exceeded error when saving' or 'need more space' tickets cluster at quarter end or after large project uploads. Each user hits a limit on their own folder; there is no common failure. Handle through the quota increase request process. Permission errors ('access denied to shared folder') after team changes are access requests for the data owner. Do not declare an incident; escalate only if uploads fail for users who are within quota.",
+    "tags": [
+      "cloud-storage",
+      "quota",
+      "permissions",
+      "false-positive",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-PORTAL-018",
+    "type": "runbook",
+    "service": "Internal Portal",
+    "summary": "Triage steps for portal login and certificate incidents",
+    "content": "1) Open the portal in a clean browser and note the exact error. 2) Certificate warning (NET::ERR_CERT_DATE_INVALID): check the certificate validity date and renew. 3) Redirect loops or SAML/AADSTS errors: ask whether the identity provider configuration or signing certificate changed recently; revert or refresh metadata. 4) Check whether other SSO applications fail as well. Escalate to the Identity & Access team; SEV1 if the portal is inaccessible org-wide. Reference: PM-2025-0176, PM-2026-0048, PM-2026-0071.",
+    "tags": [
+      "portal",
+      "triage",
+      "sso",
+      "certificate",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-PORTAL-019",
+    "type": "runbook",
+    "service": "Internal Portal",
+    "summary": "Known non-incident pattern: stale portal content",
+    "content": "Typical pattern: a few editors or users report that published changes are not visible, or that old announcements are still displayed. Login and access work normally. Caused by CDN or browser cache that was not purged after publishing. Purge the CDN cache for the affected pages and ask users to hard refresh. Not an incident.",
+    "tags": [
+      "portal",
+      "cache",
+      "false-positive",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-PRINT-020",
+    "type": "runbook",
+    "service": "Print Services",
+    "summary": "Triage steps for print server incidents",
+    "content": "1) Check whether the print server is reachable and the Print Spooler service is running. 2) All printers offline for everyone points to the server; check the last Windows or security patch. 3) Restart the spooler service and clear stuck jobs on the server. 4) Check whether only one site is affected: if so see RB-PRINT-021. Escalate to the Infrastructure team. Reference: PM-2025-0143.",
+    "tags": [
+      "print",
+      "triage",
+      "spooler",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-PRINT-021",
+    "type": "runbook",
+    "service": "Print Services",
+    "summary": "Known non-incident patterns: post-update driver errors and printer hardware",
+    "content": "Driver errors (0x0000011b, 0x00000709, 0x00000bcb) reported by several users of one site right after a Windows update affect the client driver, not the print server; other sites print normally. Fix by deploying the driver or update remediation to that site. Toner, paper jams and scanner faults on one device are hardware tickets for the field service team. Neither is an incident unless the print server itself is down.",
+    "tags": [
+      "print",
+      "driver",
+      "false-positive",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-GEN-022",
+    "type": "runbook",
+    "service": "generic",
+    "summary": "Major incident declaration and escalation policy",
+    "content": "A major incident is proposed when 3+ correlated tickets about the same service arrive within about 20 minutes, the symptoms indicate a shared component, and there is business impact. The final declaration is always a human decision. On declaration: assign an Incident Commander, open a bridge call for SEV1 and SEV2, send the first user and management communication within 15 minutes, and record the decision in the audit log. If the assessment is rejected, record the reason so that the pattern can be learned. Downgrade or close the incident as soon as new evidence shows it is a request wave.",
+    "tags": [
+      "policy",
+      "declaration",
+      "escalation",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-GEN-023",
+    "type": "runbook",
+    "service": "generic",
+    "summary": "How to distinguish an incident from a wave of similar requests",
+    "content": "Ask: 1) Do all tickets describe the same symptom and error code? 2) Do they involve one shared component such as authentication, database, certificate, network device or provider? 3) Are the reporters in different teams and departments, or all in one group doing the same task (month-end close, laptop refresh, quarter-end uploads)? 4) Do monitoring dashboards show degradation? 5) Is there a documented known pattern in the service runbooks (RB-VPN-009, RB-ERP-013, RB-CLOUD-017)? Several 'yes' on questions 1, 2 and 4 favour an incident; reporters from a single group and normal monitoring favour a request wave. State confidence honestly when the evidence is mixed.",
+    "tags": [
+      "policy",
+      "triage",
+      "false-positive",
+      "runbook"
+    ]
+  },
+  {
+    "doc_id": "RB-GEN-024",
+    "type": "runbook",
+    "service": "generic",
+    "summary": "Severity definitions and response targets",
+    "content": "SEV1: critical business function unavailable org-wide or for a whole site; bridge call within 15 minutes, updates every 30 minutes, management notified immediately. SEV2: significant degradation or partial outage affecting multiple users or teams; bridge call within 30 minutes, updates every 60 minutes. SEV3: limited impact on few users or a single function; handled by the service desk in the normal queue with next business day response. Severity is reviewed as impact becomes clearer and can be raised or lowered.",
+    "tags": [
+      "policy",
+      "severity",
+      "sla",
       "runbook"
     ]
   }

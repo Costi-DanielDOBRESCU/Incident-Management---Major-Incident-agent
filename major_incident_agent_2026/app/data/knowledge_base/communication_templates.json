@@ -50,5 +50,136 @@
       "resolved"
     ],
     "audience": "management"
+  },
+  {
+    "doc_id": "TPL-COMM-USER-003",
+    "type": "communication_template",
+    "service": "generic",
+    "summary": "User-facing template: cause identified, fix in progress",
+    "content": "Update on the {service} issue: we have identified the cause and our engineers are working on a fix. Expected next update: {next_update}. There is no need to raise additional tickets; existing tickets will be updated when the service is restored.",
+    "tags": [
+      "template",
+      "user-facing",
+      "update"
+    ],
+    "audience": "end_users"
+  },
+  {
+    "doc_id": "TPL-COMM-USER-004",
+    "type": "communication_template",
+    "service": "generic",
+    "summary": "User-facing template: severe organisation-wide outage",
+    "content": "{service} is currently unavailable for all users since ~{time}. This is being handled as a {severity} incident with the highest priority. Please do not restart your equipment and do not raise duplicate tickets. Next update: {next_update}.",
+    "tags": [
+      "template",
+      "user-facing",
+      "sev1"
+    ],
+    "audience": "end_users"
+  },
+  {
+    "doc_id": "TPL-COMM-USER-005",
+    "type": "communication_template",
+    "service": "Cloud Storage",
+    "summary": "User-facing template: cloud storage provider disruption",
+    "content": "Our cloud storage provider is reporting a disruption affecting {service} since ~{time}. Files already on your computer remain available: please keep working locally and your changes will sync automatically when the service is restored. Next update: {next_update}.",
+    "tags": [
+      "template",
+      "user-facing",
+      "cloud-storage",
+      "vendor"
+    ],
+    "audience": "end_users"
+  },
+  {
+    "doc_id": "TPL-COMM-USER-006",
+    "type": "communication_template",
+    "service": "Network/Switch",
+    "summary": "User-facing template: site network disruption",
+    "content": "Network connectivity at your site has been disrupted since ~{time}. IT is working on the problem. If you must stay connected, you may use your mobile phone as a hotspot where company policy allows. Next update: {next_update}.",
+    "tags": [
+      "template",
+      "user-facing",
+      "network"
+    ],
+    "audience": "end_users"
+  },
+  {
+    "doc_id": "TPL-COMM-USER-007",
+    "type": "communication_template",
+    "service": "Email/Exchange",
+    "summary": "User-facing template: delayed email delivery",
+    "content": "Email delivery is currently delayed. Messages are not lost and will be delivered once the backlog clears. For time-critical communication please use Teams or the phone. Next update: {next_update}.",
+    "tags": [
+      "template",
+      "user-facing",
+      "email"
+    ],
+    "audience": "end_users"
+  },
+  {
+    "doc_id": "TPL-COMM-USER-008",
+    "type": "communication_template",
+    "service": "Print Services",
+    "summary": "User-facing template: printing unavailable",
+    "content": "Printing is currently unavailable since ~{time}. Please use digital documents and e-signature where possible; urgent print jobs can be sent to the Service Desk. Next update: {next_update}.",
+    "tags": [
+      "template",
+      "user-facing",
+      "print"
+    ],
+    "audience": "end_users"
+  },
+  {
+    "doc_id": "TPL-COMM-MGMT-003",
+    "type": "communication_template",
+    "service": "generic",
+    "summary": "Management-facing template: incident status update",
+    "content": "Update on incident {incident_id} ({severity}, {service}): {ticket_count} related tickets so far. Suspected cause: {suspected_cause}. Mitigation is in progress. Next update: {next_update}.",
+    "tags": [
+      "template",
+      "management-facing",
+      "update"
+    ],
+    "audience": "management"
+  },
+  {
+    "doc_id": "TPL-COMM-MGMT-004",
+    "type": "communication_template",
+    "service": "generic",
+    "summary": "Management-facing template: severe incident executive notification",
+    "content": "{severity} declared for {service} at {time}. Organisation-wide business impact. {ticket_count} correlated tickets in {window} min. Suspected cause: {suspected_cause}. Incident bridge is open. Next update: {next_update}.",
+    "tags": [
+      "template",
+      "management-facing",
+      "sev1"
+    ],
+    "audience": "management"
+  },
+  {
+    "doc_id": "TPL-COMM-MGMT-005",
+    "type": "communication_template",
+    "service": "generic",
+    "summary": "Management-facing template: alert reviewed, not a major incident",
+    "content": "{ticket_count} tickets about {service} in {window} min were assessed as {suspected_cause} and do not meet major-incident criteria ({severity}). They are handled through the standard service desk process. No executive action required.",
+    "tags": [
+      "template",
+      "management-facing",
+      "closed"
+    ],
+    "audience": "management"
+  },
+  {
+    "doc_id": "TPL-COMM-MGMT-006",
+    "type": "communication_template",
+    "service": "generic",
+    "summary": "Management-facing template: vendor-side incident",
+    "content": "Vendor-side incident impacting {service}: the root cause is at the third-party provider. Our team is monitoring the provider status and managing user communication. Severity: {severity}. Next update: {next_update}.",
+    "tags": [
+      "template",
+      "management-facing",
+      "vendor"
+    ],
+    "audience": "management"
   }
 ]
