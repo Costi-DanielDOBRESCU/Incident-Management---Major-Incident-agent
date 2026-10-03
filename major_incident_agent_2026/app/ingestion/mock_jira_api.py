@@ -153,50 +153,50 @@ _client = TestClient(app)
 
 # Mapare directa intre cheile scenariilor demo si lista exacta de chei de tichete (key)
 # extrase direct din fisierul JSON furnizat (fara tichete inventate).
-DEMO_MAJOR_INCIDENTS: dict[str, list[str]] = {
-    # Valul masiv de tichete legate de licentierea si activarea VPN (02 Aug, 08:13 - 08:30)
-    "vpn_license_outage": [
-        "INC-10037",
-        "INC-10038",
-        "INC-10039",
-        "INC-10040",
-        "INC-10041",
-        "INC-10042",
-        "INC-10043",
-        "INC-10044",
-        "INC-10045",
-        "INC-10046",
-        "INC-10047",
-        "INC-10048",
-        "INC-10049",
-    ],
-    # Valul de tichete P2 privind indisponibilitatea Portalului / SSO (01 Aug, 23:34 - 23:43)
-    "portal_sso_failure": [
-        "INC-10020",
-        "INC-10021",
-        "INC-10022",
-        "INC-10023",
-        "INC-10024",
-        "INC-10025",
-    ],
-    # Tichetele legate de erorile de server, crash-uri si performanta scazuta ERP
-    "erp_system_instability": [
-        "INC-10007",
-        "INC-10012",
-        "INC-10016",
-        "INC-10019",
-        "INC-10026",
-    ],
-    # Tichetele privind conexiunea instabila la retea in sediile regionale
-    "network_infrastructure_issues": [
-        "INC-10001",
-        "INC-10009",
-        "INC-10013",
-        "INC-10035",
-        "INC-10036",
-        "INC-10050",
-    ],
-}
+# DEMO_MAJOR_INCIDENTS: dict[str, list[str]] = {
+#     # Valul masiv de tichete legate de licentierea si activarea VPN (02 Aug, 08:13 - 08:30)
+#     "vpn_license_outage": [
+#         "INC-10037",
+#         "INC-10038",
+#         "INC-10039",
+#         "INC-10040",
+#         "INC-10041",
+#         "INC-10042",
+#         "INC-10043",
+#         "INC-10044",
+#         "INC-10045",
+#         "INC-10046",
+#         "INC-10047",
+#         "INC-10048",
+#         "INC-10049",
+#     ],
+#     # Valul de tichete P2 privind indisponibilitatea Portalului / SSO (01 Aug, 23:34 - 23:43)
+#     "portal_sso_failure": [
+#         "INC-10020",
+#         "INC-10021",
+#         "INC-10022",
+#         "INC-10023",
+#         "INC-10024",
+#         "INC-10025",
+#     ],
+#     # Tichetele legate de erorile de server, crash-uri si performanta scazuta ERP
+#     "erp_system_instability": [
+#         "INC-10007",
+#         "INC-10012",
+#         "INC-10016",
+#         "INC-10019",
+#         "INC-10026",
+#     ],
+#     # Tichetele privind conexiunea instabila la retea in sediile regionale
+#     "network_infrastructure_issues": [
+#         "INC-10001",
+#         "INC-10009",
+#         "INC-10013",
+#         "INC-10035",
+#         "INC-10036",
+#         "INC-10050",
+#     ],
+# }
 
 
 def fetch_tickets(

@@ -23,9 +23,8 @@ from langgraph_sdk import get_sync_client
 
 from app.config import get_settings
 from app.detection.build_cluster import build_incident_cluster
-from app.detection.clustering import cluster_similar_tickets
 from app.detection.embeddings import create_embedding
-from app.detection.similarity import calculate_similarity_matrix
+from app.detection.pipeline import detect_clusters_with_matrix
 from app.ingestion import ticket_store
 
 st.set_page_config(page_title="Major Incident Agent", layout="wide")
@@ -397,8 +396,9 @@ elif step == 1:
     st.subheader(STEPS[1])
     _node_box(
         "Detection Pipeline",
-        "Calculează embeddings BGE-M3, similaritatea cosinus între perechi, "
-        "apoi grupează tichetele corelate "
+        "Calculează embeddings BGE-M3 pe textul complet al tichetului (rezumat, descriere, serviciu, etichete) "
+        "și similaritatea cosinus, apoi grupează tichetele corelate pe o fereastră glisantă de "
+        f"{settings.clustering_window_minutes} min, unind clusterele suprapuse "
         f"(prag {settings.similarity_threshold}, minim {settings.min_tickets_per_cluster} tichete/cluster).",
     )
 
@@ -407,14 +407,7 @@ elif step == 1:
     if st.session_state["detection_result"] is None:
         if st.button("Rulează detecția"):
             with st.spinner("Se calculează embeddings + similaritate..."):
-                texts = [t["fields"]["summary"] for t in tickets]
-                embeddings = [cached_embedding(text) for text in texts]
-                similarity_matrix = calculate_similarity_matrix(embeddings)
-                raw_clusters = cluster_similar_tickets(
-                    similarity_matrix,
-                    threshold=settings.similarity_threshold,
-                    min_cluster_size=settings.min_tickets_per_cluster,
-                )
+                raw_clusters, similarity_matrix = detect_clusters_with_matrix(tickets, embed=cached_embedding)
                 clusters = [
                     build_incident_cluster(tickets, similarity_matrix, idx, seq)
                     for seq, idx in enumerate(raw_clusters, start=1)

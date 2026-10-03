@@ -1,14 +1,16 @@
 """
 tests/test_mock_data.py
 
-Etapa 1-2, fișier 4/4 — 6 teste pytest pentru datele mock generate de
-scripts/generate_mock_data.py și pentru mock_jira_api.py.
+Teste pytest pentru datele mock (generate_mock_tickets.py v2 + knowledge base extins)
+si pentru mock_jira_api.py.
 
 Rulare:
     pytest tests/test_mock_data.py -v
 """
 
 import json
+import re
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -16,7 +18,7 @@ import pytest
 from app.ingestion.mock_jira_api import fetch_tickets
 
 # ---------------------------------------------------------------------------
-# Căi + praguri (secțiunea 6.5 din documentație)
+# Căi + praguri
 # ---------------------------------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,7 +34,17 @@ KB_FILES = [
     KB_DIR / "runbooks.json",
 ]
 
-MIN_TICKETS_PER_CLUSTER = 3  # secțiunea 6.5 a documentației
+MIN_TICKETS_PER_CLUSTER = 3
+
+SERVICES = {
+    "VPN Gateway", "Email/Exchange", "ERP System", "Network/Switch",
+    "Cloud Storage", "Internal Portal", "Print Services",
+}
+KB_SERVICES = SERVICES | {"generic"}
+TEMPLATE_PLACEHOLDERS = {
+    "service", "time", "next_update", "ticket_count", "window",
+    "suspected_cause", "severity", "incident_id", "root_cause", "duration",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -60,19 +72,23 @@ def kb_documents() -> list[dict]:
     return docs
 
 
+def _service_of(issue: dict) -> str:
+    return issue["fields"]["components"][0]["name"]
+
+
 # ---------------------------------------------------------------------------
-# 1. Volum de date (secțiunea 5.2: 200-500 tichete)
+# 1. Volum de date
 # ---------------------------------------------------------------------------
 
 def test_ticket_volume_in_expected_range(tickets_data):
     issues = tickets_data["issues"]
-    assert 200 <= len(issues) <= 500
+    assert 500 <= len(issues) <= 1000
     # "total" trebuie să reflecte corect numărul de tichete din fișier
     assert tickets_data["total"] == len(issues)
 
 
 # ---------------------------------------------------------------------------
-# 2. Forma Jira-like (secțiunea 5.4)
+# 2. Forma Jira-like
 # ---------------------------------------------------------------------------
 
 def test_tickets_match_jira_like_shape(tickets_data):
@@ -104,8 +120,34 @@ def test_tickets_match_jira_like_shape(tickets_data):
     assert len(keys) == len(set(keys))
 
 
+def test_ticket_content_is_realistic(tickets_data):
+    issues = tickets_data["issues"]
+
+    # prioritățile folosesc nume corecte, fără combinații contradictorii
+    allowed_priorities = {"P1 - Critical", "P2 - High", "P3 - Medium", "P4 - Low"}
+    assert {i["fields"]["priority"]["name"] for i in issues} <= allowed_priorities
+
+    # toate cele 7 servicii sunt prezente
+    assert {_service_of(i) for i in issues} == SERVICES
+
+    # textele nu sunt șabloane repetate: variație mare în rezumate și descrieri
+    summaries = {i["fields"]["summary"] for i in issues}
+    descriptions = {i["fields"]["description"] for i in issues}
+    assert len(summaries) >= 0.35 * len(issues)
+    assert len(descriptions) >= 0.55 * len(issues)
+
+    # fără placeholdere nerezolvate
+    for i in issues:
+        assert "{" not in i["fields"]["summary"]
+        assert "{" not in i["fields"]["description"]
+
+    # tichetele sunt în ordine cronologică
+    created = [i["fields"]["created"] for i in issues]
+    assert created == sorted(created)
+
+
 # ---------------------------------------------------------------------------
-# 3. Ground truth — grupuri (burst-uri reale, secțiunea 5.2 + 6.5)
+# 3. Ground truth — grupuri (incidente reale)
 # ---------------------------------------------------------------------------
 
 def test_ground_truth_groups_meet_cluster_threshold(tickets_data, ground_truth_data):
@@ -114,43 +156,50 @@ def test_ground_truth_groups_meet_cluster_threshold(tickets_data, ground_truth_d
     gt_keys = {entry["ticket_id"] for entry in ground_truth_data}
     assert gt_keys == ticket_keys
 
+    service_by_key = {i["key"]: _service_of(i) for i in tickets_data["issues"]}
+
     groups: dict[str, list[dict]] = {}
     for entry in ground_truth_data:
         gid = entry["incident_group_id"]
         if gid is not None:
             groups.setdefault(gid, []).append(entry)
 
-    # cele 10 grupuri ground truth din secțiunea 5.2
-    assert len(groups) == 10
+    # 18 incidente reale (GT-001 ... GT-018)
+    assert len(groups) == 18
 
     for gid, members in groups.items():
-        # fiecare grup trebuie să respecte pragul minim de tichete/cluster
+        # fiecare grup respectă pragul minim de tichete/cluster
         assert len(members) >= MIN_TICKETS_PER_CLUSTER
-        # toate tichetele dintr-un grup trebuie marcate ca major incident
+        # toate tichetele dintr-un grup sunt marcate ca major incident
         assert all(m["is_major_incident_ticket"] for m in members)
-        # și trebuie să aibă aceeași cauză reală (root_cause_id) în cadrul grupului
-        root_causes = {m["root_cause_id"] for m in members}
-        assert len(root_causes) == 1
+        # aceeași cauză reală în cadrul grupului
+        assert len({m["root_cause_id"] for m in members}) == 1
+        # și același serviciu
+        assert len({service_by_key[m["ticket_id"]] for m in members}) == 1
         # niciun membru de grup nu poate fi și trap
         assert not any(m["is_false_positive_trap"] for m in members)
 
+    # incidentele acoperă toate cele 7 servicii
+    covered = {service_by_key[members[0]["ticket_id"]] for members in groups.values()}
+    assert covered == SERVICES
+
 
 # ---------------------------------------------------------------------------
-# 4. Ground truth — false-positive traps (secțiunea 5.2)
+# 4. Ground truth — capcane de fals-pozitiv
 # ---------------------------------------------------------------------------
 
 def test_ground_truth_false_positive_traps_are_isolated(ground_truth_data):
     traps = [e for e in ground_truth_data if e["is_false_positive_trap"]]
 
-    # trebuie să existe cel puțin câteva traps, dar nu prea multe (sunt cazuri intenționate rare)
-    assert 1 <= len(traps) <= 30
+    # trebuie să existe capcane, dar rămân o minoritate clară
+    assert 10 <= len(traps) <= 80
 
     for trap in traps:
         # un trap NU face parte dintr-un cluster ground truth și nu e marcat major incident
         assert trap["incident_group_id"] is None
         assert trap["is_major_incident_ticket"] is False
 
-    # tichetele izolate (fără grup, fără trap) + grupate + traps trebuie să acopere tot setul
+    # tichetele izolate (fără grup, fără trap) + grupate + traps acoperă tot setul
     grouped = sum(1 for e in ground_truth_data if e["incident_group_id"] is not None)
     isolated = sum(
         1 for e in ground_truth_data
@@ -158,13 +207,41 @@ def test_ground_truth_false_positive_traps_are_isolated(ground_truth_data):
     )
     assert grouped + isolated + len(traps) == len(ground_truth_data)
 
+    # zgomotul de fundal domină setul, ca într-un helpdesk real
+    assert isolated > grouped
+
+
+def test_noise_does_not_form_accidental_clusters(tickets_data, ground_truth_data):
+    """Orice 3 tichete consecutive ale aceluiași serviciu în 20 de minute trebuie să fie
+    dintr-un incident sau dintr-o capcană intenționată, niciodată zgomot de fundal."""
+    from datetime import datetime
+
+    gt = {e["ticket_id"]: e for e in ground_truth_data}
+    per_service: dict[str, list[tuple[datetime, str]]] = {}
+    for i in tickets_data["issues"]:
+        ts = datetime.strptime(i["fields"]["created"], "%Y-%m-%dT%H:%M:%S.000+0000")
+        per_service.setdefault(_service_of(i), []).append((ts, i["key"]))
+
+    for service, items in per_service.items():
+        items.sort()
+        for a, b, c in zip(items, items[1:], items[2:]):
+            if (c[0] - a[0]).total_seconds() <= 20 * 60:
+                for _, key in (a, b, c):
+                    entry = gt[key]
+                    assert entry["incident_group_id"] or entry["is_false_positive_trap"], (
+                        f"Cluster accidental de zgomot în {service} în jurul {a[0]}"
+                    )
+
 
 # ---------------------------------------------------------------------------
-# 5. Knowledge base — cele 3 colecții (secțiunea 5.3)
+# 5. Knowledge base — cele 3 colecții
 # ---------------------------------------------------------------------------
 
 def test_knowledge_base_collections(kb_documents):
-    assert len(kb_documents) == 18  # 4 + 7 + 7, secțiunea 5.3
+    # 20 post-mortemuri + 24 runbook-uri + 14 șabloane de comunicare
+    counts = Counter(doc["type"] for doc in kb_documents)
+    assert counts == {"post_mortem": 20, "runbook": 24, "communication_template": 14}
+    assert len(kb_documents) == 58
 
     required_keys = {"doc_id", "type", "service", "summary", "content", "tags"}
     doc_ids = set()
@@ -173,10 +250,32 @@ def test_knowledge_base_collections(kb_documents):
         assert doc["doc_id"] not in doc_ids, f"doc_id duplicat: {doc['doc_id']}"
         doc_ids.add(doc["doc_id"])
         assert doc["type"] in {"post_mortem", "runbook", "communication_template"}
+        assert doc["service"] in KB_SERVICES
+        assert doc["content"].strip() and doc["tags"]
+
+
+def test_knowledge_base_covers_every_service(kb_documents):
+    for service in SERVICES:
+        types = {d["type"] for d in kb_documents if d["service"] == service}
+        assert {"post_mortem", "runbook"} <= types, f"Acoperire incompletă pentru {service}"
+
+
+def test_knowledge_base_templates_and_references(kb_documents):
+    ids = {d["doc_id"] for d in kb_documents}
+
+    for doc in kb_documents:
+        if doc["type"] == "communication_template":
+            assert doc["audience"] in {"end_users", "management"}
+            used = set(re.findall(r"\{(\w+)\}", doc["content"]))
+            assert used <= TEMPLATE_PLACEHOLDERS, f"{doc['doc_id']}: {used - TEMPLATE_PLACEHOLDERS}"
+
+        # referințele către alte documente trebuie să existe
+        for ref in re.findall(r"\b(?:PM-\d{4}-\d{4}|RB-[A-Z]+-\d{3}|TPL-COMM-[A-Z]+-\d{3})\b", doc["content"]):
+            assert ref in ids, f"{doc['doc_id']} face referire la {ref}, care nu există"
 
 
 # ---------------------------------------------------------------------------
-# 6. Mock API — search + filtrare `since` (secțiunea 5.4, tool fetch_tickets)
+# 6. Mock API — search + filtrare `since` (tool fetch_tickets)
 # ---------------------------------------------------------------------------
 
 def test_mock_api_search_and_since_filter(tickets_data):

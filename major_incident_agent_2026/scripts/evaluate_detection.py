@@ -16,6 +16,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from app.config import get_settings
 from app.detection.clustering import cluster_similar_tickets
 from app.detection.time_window import _get_created_at
+from app.detection.text import build_ticket_text
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -45,29 +46,29 @@ def load_data() -> tuple[list[dict], list[dict]]:
     return ground_truth, tickets_data["issues"]
 
 
-def build_ticket_text(ticket: dict) -> str:
-    """Build the composite text representation used by the detector."""
-    fields = ticket["fields"]
+# def build_ticket_text(ticket: dict) -> str:
+#     """Build the composite text representation used by the detector."""
+#     fields = ticket["fields"]
 
-    summary = str(fields.get("summary", ""))
-    description = str(fields.get("description", ""))
+#     summary = str(fields.get("summary", ""))
+#     description = str(fields.get("description", ""))
 
-    components = ", ".join(
-        str(component.get("name", ""))
-        for component in fields.get("components", [])
-    )
+#     components = ", ".join(
+#         str(component.get("name", ""))
+#         for component in fields.get("components", [])
+#     )
 
-    labels = ", ".join(
-        str(label)
-        for label in fields.get("labels", [])
-    )
+#     labels = ", ".join(
+#         str(label)
+#         for label in fields.get("labels", [])
+#     )
 
-    return (
-        f"Summary: {summary}\n"
-        f"Description: {description}\n"
-        f"Component: {components}\n"
-        f"Labels: {labels}"
-    )
+#     return (
+#         f"Summary: {summary}\n"
+#         f"Description: {description}\n"
+#         f"Component: {components}\n"
+#         f"Labels: {labels}"
+#     )
 
 
 def calculate_metrics(
