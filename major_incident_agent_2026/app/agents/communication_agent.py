@@ -34,6 +34,7 @@ from app.agents.llm_client import LlmGenerationError, generate_structured_json
 from app.models.schemas import CommunicationDraft, IncidentAssessment, IncidentCluster, MajorIncident
 from app.rag.chroma_client import COLLECTION_TEMPLATES
 from app.rag.query import query_knowledge_base
+from app.agents.template_selection import fetch_templates, select_template_ids
 
 _DETERMINISTIC_FIELDS = ("incident_id", "audience", "rag_sources", "requires_approval")
 
@@ -203,7 +204,6 @@ RELEVANT TEMPLATES (from knowledge base - match tone, adapt content, DO NOT leav
 Respond STRICTLY in JSON format with fields "subject" and "body". The body must be a final, clean, ready-to-send text.
 """
 
-
 def generate_communication(
     incident: MajorIncident,
     assessment: IncidentAssessment,
@@ -226,10 +226,12 @@ def generate_communication(
         CommunicationError: daca LLM-ul nu raspunde sau output-ul nu
             valideaza fata de CommunicationDraft.
     """
-    query_text = _build_rag_query_text(cluster, audience)
-    template_context = query_knowledge_base(
-        query_text, COLLECTION_TEMPLATES, n_results=2, audience_filter=audience
-    )
+    # query_text = _build_rag_query_text(cluster, audience)
+    # template_context = query_knowledge_base(
+    #     query_text, COLLECTION_TEMPLATES, n_results=2, audience_filter=audience
+    # )
+    template_ids = select_template_ids(audience, incident.severity, cluster.service_guess)
+    template_context = fetch_templates(template_ids)
 
     prompt = _build_prompt(incident, assessment, cluster, audience, template_context)
     schema = _llm_output_schema()

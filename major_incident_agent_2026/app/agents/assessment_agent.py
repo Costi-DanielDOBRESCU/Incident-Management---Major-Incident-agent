@@ -25,7 +25,7 @@ from app.agents.llm_client import LlmGenerationError, generate_structured_json
 from app.models.schemas import IncidentAssessment, IncidentCluster
 from app.rag.chroma_client import COLLECTION_HISTORICAL, COLLECTION_RUNBOOKS
 from app.rag.query import query_knowledge_base
-
+from app.agents.decision_rules import enforce_decision_consistency
 # Campuri completate determinist de noi, NU cerute LLM-ului (vezi docstring modul).
 _DETERMINISTIC_FIELDS = ("cluster_id", "affected_service", "rag_sources")
 
@@ -249,7 +249,10 @@ def assess_incident(
 
     query_text = _build_rag_query_text(cluster, ticket_summaries)
 
-    historical_context = query_knowledge_base(query_text, COLLECTION_HISTORICAL, n_results=3)
+    # historical_context = query_knowledge_base(query_text, COLLECTION_HISTORICAL, n_results=3)
+    historical_context = query_knowledge_base(
+        query_text, COLLECTION_HISTORICAL, n_results=3, service_filter=cluster.service_guess
+    )
     runbook_context = query_knowledge_base(
         query_text, COLLECTION_RUNBOOKS, n_results=2, service_filter=cluster.service_guess
     )
@@ -266,6 +269,8 @@ def assess_incident(
         )
     except LlmGenerationError as exc:
         raise AssessmentError(f"LLM-ul nu a raspuns pentru cluster {cluster.cluster_id}: {exc}") from exc
+
+    llm_output = enforce_decision_consistency(llm_output)
 
     rag_sources = [doc["doc_id"] for doc in historical_context] + [doc["doc_id"] for doc in runbook_context]
 

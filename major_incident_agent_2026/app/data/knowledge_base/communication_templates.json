@@ -81,13 +81,12 @@
     "doc_id": "TPL-COMM-USER-005",
     "type": "communication_template",
     "service": "Cloud Storage",
-    "summary": "User-facing template: cloud storage provider disruption",
-    "content": "Our cloud storage provider is reporting a disruption affecting {service} since ~{time}. Files already on your computer remain available: please keep working locally and your changes will sync automatically when the service is restored. Next update: {next_update}.",
+    "summary": "User-facing template: cloud storage disruption (keep working locally)",
+    "content": "{service} is currently disrupted since ~{time}. Files already on your computer remain available: please keep working locally and your changes will sync automatically when the service is restored. Please do not raise duplicate tickets. Next update: {next_update}.",
     "tags": [
       "template",
       "user-facing",
-      "cloud-storage",
-      "vendor"
+      "cloud-storage"
     ],
     "audience": "end_users"
   },
@@ -108,8 +107,8 @@
     "doc_id": "TPL-COMM-USER-007",
     "type": "communication_template",
     "service": "Email/Exchange",
-    "summary": "User-facing template: delayed email delivery",
-    "content": "Email delivery is currently delayed. Messages are not lost and will be delivered once the backlog clears. For time-critical communication please use Teams or the phone. Next update: {next_update}.",
+    "summary": "User-facing template: email service disruption",
+    "content": "The email service is currently disrupted since ~{time}: you may see delayed delivery or be unable to open your mailbox. Messages already sent are not lost and will be delivered once the service recovers. For time-critical communication please use Teams or the phone. Next update: {next_update}.",
     "tags": [
       "template",
       "user-facing",
