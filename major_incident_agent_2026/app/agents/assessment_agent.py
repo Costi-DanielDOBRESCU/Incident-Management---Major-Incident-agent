@@ -192,7 +192,7 @@ def _build_prompt(
 CLUSTER DATA:
 - Service: {cluster.service_guess}
 - Ticket Count: {cluster.ticket_count}
-- Time Window: {duration_minutes} minutes
+- Time span of the cluster: {duration_minutes} minutes
 
 TICKETS:
 {summaries_block}
@@ -204,13 +204,16 @@ RUNBOOK SEVERITY RULES:
 {runbook_block}
 
 EVALUATION RULES:
-1. Determine Scope: 
-   - SHARED/CENTRAL: Affects central infrastructure, database, SSO, or service used by multiple people.
-   - LOCAL/INDIVIDUAL: Affects single user's device, replacement laptop, or personal license.
+1. Determine Scope. Ask yourself: would ONE fix on a central component (server, database, network device, certificate, identity provider, provider service) resolve ALL of these tickets?
+   - SHARED/CENTRAL: yes, the same central component is failing for everyone who uses it (e.g. portal login down for all users, mail database unavailable, core switch failed, ERP database refusing connections).
+   - LOCAL/INDIVIDUAL: no, each reporter has their own cause, even if many people report the same kind of problem. Examples: a full mailbox or storage quota, missing permissions or role after a team change, license or device activation, a client driver error after an update, content not refreshed after publishing, one slow report or a month-end job, a single access point or room, or a request (access, more space, new device).
+   - Many users reporting the same LOCAL/INDIVIDUAL kind of problem does NOT make it SHARED. Ticket count never turns an individual problem into an outage.
+   - If a runbook describes a "known non-incident pattern" that matches the tickets, treat it as LOCAL/INDIVIDUAL.
 2. Evaluate Severity:
    - If LOCAL/INDIVIDUAL -> default to SEV3 (or lowest severity).
    - If SHARED/CENTRAL -> Compare ticket count ({cluster.ticket_count}) and window ({duration_minutes} min) against RUNBOOK SEVERITY RULES. 
    - IMPORTANT: If multiple users face a central issue (e.g. database down, portal error), it MUST NOT be SEV3 if it meets SEV1/SEV2 criteria in the runbook.
+   - TIME WINDOWS in runbooks (e.g. "3+ users within 15 minutes") are minimum-density criteria: the criterion is met when the ticket count reaches the stated number. A cluster whose total time span is longer than the runbook window STILL meets the criterion; a longer span means the incident lasted longer. More tickets or a longer span never lower the severity.
 3. Major Incident Candidate:
    - If estimated_severity is SEV1 or SEV2 -> is_major_incident_candidate = true, recommended_action = "propose_major_incident".
    - If estimated_severity is SEV3 -> is_major_incident_candidate = false, recommended_action = "monitor" or "dismiss".
