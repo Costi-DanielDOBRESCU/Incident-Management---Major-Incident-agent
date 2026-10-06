@@ -7,6 +7,8 @@ Integrare cu LangGraph:
 - Astfel, tot ce faci in Streamlit apare live in LangGraph Studio (thread-ul curent).
 - Starea vine de la server ca dict-uri JSON (nu obiecte Pydantic).
 - Punctele de Human-in-the-Loop folosesc interrupt() + resume prin `command={"resume": ...}`.
+- Istoricul deciziilor vine din audit.db (SQLite), nu din session_state: supravietuieste
+  la "Incepe un incident nou" si la restartul aplicatiei.
 
 Pornire (2 terminale, cu venv activ):
   1) langgraph dev
@@ -25,6 +27,8 @@ from app.config import get_settings
 from app.detection.build_cluster import build_incident_cluster
 from app.detection.embeddings import create_embedding
 from app.detection.pipeline import detect_clusters_with_matrix
+from app.detection.unclustered import find_unclustered
+from app.execution import audit_store, ticket_reviews
 from app.ingestion import ticket_store
 
 st.set_page_config(page_title="Major Incident Agent", layout="wide")
@@ -36,6 +40,9 @@ GRAPH_NAME = "mia"  # cheia din langgraph.json -> "graphs"
 MOCK_URL = f"http://127.0.0.1:{settings.mock_jira_port}"
 
 ticket_store.init_db()
+
+# Operatorul care ia deciziile (trimis la resume si salvat in audit)
+DECIDED_BY = st.sidebar.text_input("Operator", value="demo_user").strip() or "demo_user"
 
 
 # ---------------------------------------------------------------------------
@@ -72,6 +79,35 @@ def _get_thread_state() -> dict:
     except Exception as exc:  # noqa: BLE001
         st.error(f"Nu pot citi starea thread-ului: {exc}")
         st.stop()
+
+
+# Starile in care un cluster e considerat finalizat (se poate vedea doar rezultatul)
+DONE_CODES = {"declared", "rejected", "not_candidate"}
+# Pasul la care se redeschide un cluster, in functie de status
+OPEN_STEP = {"pending": 2, "awaiting": 3, "comms": 4, "declared": 5, "rejected": 5, "not_candidate": 5}
+
+
+def _cluster_status(thread_id: str | None) -> tuple[str, str]:
+    """(cod, eticheta) pentru un cluster, calculat din starea thread-ului de pe server."""
+    if not thread_id:
+        return "new", "neevaluat"
+    try:
+        state = client.threads.get_state(thread_id)
+    except Exception:  # noqa: BLE001
+        return "pending", "stare indisponibilă"
+    values = state.get("values") or {}
+    if not values.get("assessment"):
+        return "pending", "în evaluare"
+    approved = values.get("user_approved_incident")
+    if approved is True:
+        if values.get("user_approved_communications"):
+            return "declared", "declarat"
+        return "comms", "declarat, comunicări neaprobate"
+    if approved is False:
+        return "rejected", "respins"
+    if state.get("next"):
+        return "awaiting", "așteaptă decizia"
+    return "not_candidate", "nu e candidat"
 
 
 # ---------------------------------------------------------------------------
@@ -275,8 +311,8 @@ def _init_state() -> None:
         "stream_done": False,
         "detection_result": None,
         "selected_cluster_id": None,
-        "major_incidents": [],
         "thread_id": None,
+        "cluster_threads": {},  # cluster_id -> thread_id (un thread per cluster evaluat)
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -292,6 +328,7 @@ def _reset_flow() -> None:
             False if key == "stream_done" else None
         )
     st.session_state["thread_id"] = None  # thread nou se creeaza la urmatoarea pornire a grafului
+    st.session_state["cluster_threads"] = {}
     st.session_state["wizard_step"] = 0
 
 
@@ -310,6 +347,91 @@ def _render_stepper_header(current: int) -> None:
             f"</div>"
         )
     st.markdown(f'<div class="mia-stepper">{"".join(cells)}</div>', unsafe_allow_html=True)
+
+
+def _ticket_details(issue: dict, key_prefix: str) -> None:
+    """Detalii complete ale unui tichet Jira (metadate + descriere)."""
+    f = issue.get("fields") or {}
+    components = ", ".join(c.get("name", "") for c in f.get("components") or []) or "N/A"
+    meta = [
+        ("ID", issue.get("key", "N/A")),
+        ("Creat (UTC)", _fmt_ts(f.get("created"))),
+        ("Serviciu", components),
+        ("Prioritate", (f.get("priority") or {}).get("name", "N/A")),
+        ("Status", (f.get("status") or {}).get("name", "N/A")),
+        ("Raportat de", (f.get("reporter") or {}).get("name", "N/A")),
+        ("Locație", f.get("location") or "N/A"),
+        ("Etichete", ", ".join(f.get("labels") or []) or "N/A"),
+    ]
+    cols = st.columns(4)
+    for i, (label, value) in enumerate(meta):
+        cols[i % 4].caption(label)
+        cols[i % 4].text(value)
+    st.text_area(
+        "Descriere",
+        value=f.get("description") or "(fără descriere)",
+        height=140,
+        disabled=True,
+        key=f"{key_prefix}_desc_{issue.get('key')}",
+    )
+
+
+def _save_review(ticket_key: str, created: str, widget_key: str) -> None:
+    """Callback: salveaza starea aleasa de operator pentru un tichet fara cluster."""
+    try:
+        ticket_reviews.set_review(ticket_key, created, st.session_state[widget_key], DECIDED_BY)
+    except Exception as exc:  # noqa: BLE001
+        st.session_state["review_error"] = str(exc)
+
+
+def _render_unclustered(detection: dict, tickets_by_key: dict) -> None:
+    """Tichetele care nu au intrat in niciun cluster, cu marcarea starii de catre operator."""
+    items = detection.get("unclustered") or []
+    st.divider()
+    st.subheader(f"Tichete fără cluster ({len(items)})")
+    if not items:
+        st.caption("Toate tichetele au intrat într-un cluster.")
+        return
+
+    try:
+        reviews = ticket_reviews.list_reviews()
+    except Exception as exc:  # noqa: BLE001
+        reviews = {}
+        st.warning(f"Nu pot citi stările tichetelor din audit.db: {exc}")
+    if st.session_state.pop("review_error", None):
+        st.warning("Nu am putut salva starea tichetului.")
+
+    statuses = [reviews.get((i["key"], i["created"]), {}).get("status", "unreviewed") for i in items]
+    st.caption(
+        f"{statuses.count('unreviewed')} nerevizuite · {statuses.count('handled')} tratate individual · "
+        f"{statuses.count('watch')} de urmărit. Sortate după apropierea de cel mai apropiat cluster "
+        "(informativ, nu modifică clusterele)."
+    )
+
+    markers = {"unreviewed": "○", "handled": "✓", "watch": "◔"}
+    status_codes = list(ticket_reviews.STATUS_LABELS)
+    for item, status in zip(items, statuses):
+        review = reviews.get((item["key"], item["created"]))
+        sim = item["nearest_similarity"]
+        sim_txt = f" · similar {sim:.2f} cu {item['nearest_cluster_id']}" if sim is not None else ""
+        label = f"{markers[status]} {item['key']} · {item['service']} · {item['summary'][:70]}{sim_txt}"
+        with st.expander(label):
+            issue = tickets_by_key.get(item["key"])
+            if issue:
+                _ticket_details(issue, key_prefix="uncl")
+            widget_key = f"review_{item['key']}_{item['created']}"
+            st.radio(
+                "Stare",
+                options=status_codes,
+                index=status_codes.index(status),
+                format_func=lambda code: ticket_reviews.STATUS_LABELS[code],
+                horizontal=True,
+                key=widget_key,
+                on_change=_save_review,
+                args=(item["key"], item["created"], widget_key),
+            )
+            if review:
+                st.caption(f"Marcat de {review['reviewed_by']} la {_fmt_ts(review['reviewed_at'])} UTC")
 
 
 @st.fragment(run_every=2)
@@ -332,6 +454,20 @@ def _live_tickets_view() -> None:
             hide_index=True,
             use_container_width=True,
         )
+        summaries = {r["key"]: r["summary"] for r in rows}
+        chosen_key = st.selectbox(
+            "Detalii tichet",
+            options=list(summaries),
+            index=None,
+            placeholder="Alege un tichet pentru a vedea descrierea completă...",
+            format_func=lambda k: f"{k} · {summaries[k][:80]}",
+            key="live_ticket_detail",
+        )
+        if chosen_key:
+            issue = ticket_store.get_raw_issue(chosen_key)
+            if issue:
+                with st.container(border=True):
+                    _ticket_details(issue, key_prefix="live")
     else:
         st.info("Niciun tichet încă. Verifică dacă ingestorul rulează (python -m app.ingestion.ingestor).")
 
@@ -386,6 +522,7 @@ if step == 0:
             st.session_state["stream_tickets"] = snapshot
             st.session_state["stream_done"] = True
             st.session_state["detection_result"] = None
+            st.session_state["cluster_threads"] = {}
             st.session_state["wizard_step"] = 1
             st.rerun()
 
@@ -416,6 +553,9 @@ elif step == 1:
                     "tickets": tickets,
                     "clusters": clusters,
                     "indices_by_cluster": {c.cluster_id: idx for c, idx in zip(clusters, raw_clusters)},
+                    "unclustered": find_unclustered(
+                        tickets, raw_clusters, similarity_matrix, [c.cluster_id for c in clusters]
+                    ),
                 }
                 if len(clusters) == 1:
                     st.session_state["selected_cluster_id"] = clusters[0].cluster_id
@@ -429,15 +569,29 @@ elif step == 1:
                 st.session_state["wizard_step"] = 0
                 st.rerun()
         else:
-            if len(clusters) > 1:
-                options = {c.cluster_id: c for c in clusters}
-                chosen = st.radio(
-                    "Mai multe clustere detectate - alege unul pentru a continua",
-                    options=list(options.keys()),
-                )
-                st.session_state["selected_cluster_id"] = chosen
+            threads = st.session_state["cluster_threads"]
+            by_id = {c.cluster_id: c for c in clusters}
+            ids = list(by_id)
+            statuses = {cid: _cluster_status(threads.get(cid)) for cid in ids}
+            done = sum(1 for code, _ in statuses.values() if code in DONE_CODES)
+            st.caption(f"{done} din {len(ids)} clustere finalizate")
 
-            selected = next(c for c in clusters if c.cluster_id == st.session_state["selected_cluster_id"])
+            current = st.session_state["selected_cluster_id"]
+            if current not in by_id:
+                # primul cluster neevaluat, altfel primul din lista
+                current = next((cid for cid in ids if statuses[cid][0] == "new"), ids[0])
+            chosen = st.radio(
+                "Clustere detectate",
+                options=ids,
+                index=ids.index(current),
+                format_func=lambda cid: (
+                    f"{cid} · {by_id[cid].service_guess} · {by_id[cid].ticket_count} tichete · {statuses[cid][1]}"
+                ),
+            )
+            st.session_state["selected_cluster_id"] = chosen
+            selected = by_id[chosen]
+            code, label = statuses[chosen]
+
             with st.container(border=True):
                 st.markdown(
                     f'<div class="mia-cluster-title">'
@@ -450,15 +604,22 @@ elif step == 1:
                     f'<div class="mia-meta">'
                     f'{selected.ticket_count} tichete &nbsp;|&nbsp; '
                     f'similaritate {selected.centroid_similarity:.2f} &nbsp;|&nbsp; '
-                    f'{selected.window_start:%H:%M:%S}\u2013{selected.window_end:%H:%M:%S}'
+                    f'{selected.window_start:%H:%M:%S}\u2013{selected.window_end:%H:%M:%S} '
+                    f'&nbsp;|&nbsp; stare: <strong>{label}</strong>'
                     f'</div>',
                     unsafe_allow_html=True,
                 )
-                st.markdown(
-                    f'<div class="mia-mono" style="margin-top:0.3rem; word-break:break-all;">'
-                    f'{", ".join(selected.ticket_ids)}</div>',
-                    unsafe_allow_html=True,
-                )
+
+            tickets_by_key = {t["key"]: t for t in st.session_state["detection_result"]["tickets"]}
+            with st.expander(f"Tichetele clusterului ({selected.ticket_count})"):
+                for tkey in selected.ticket_ids:
+                    issue = tickets_by_key.get(tkey)
+                    if not issue:
+                        st.caption(f"{tkey} (indisponibil)")
+                        continue
+                    title = issue["fields"].get("summary", "")
+                    with st.expander(f"{tkey} · {title[:90]}"):
+                        _ticket_details(issue, key_prefix=f"cluster_{selected.cluster_id}")
 
             col_a, col_b = st.columns([1, 5])
             with col_a:
@@ -466,22 +627,37 @@ elif step == 1:
                     st.session_state["wizard_step"] = 0
                     st.rerun()
             with col_b:
-                if st.button("Next: Evaluare AI (Pornire Graf LangGraph)"):
-                    detection = st.session_state["detection_result"]
-                    indices = detection["indices_by_cluster"][selected.cluster_id]
-                    summaries = [detection["tickets"][i]["fields"]["summary"] for i in indices]
+                if code == "new":
+                    if st.button("Next: Evaluare AI (Pornire Graf LangGraph)"):
+                        detection = st.session_state["detection_result"]
+                        indices = detection["indices_by_cluster"][selected.cluster_id]
+                        summaries = [detection["tickets"][i]["fields"]["summary"] for i in indices]
 
-                    with st.spinner("Se creează thread-ul și rulează node_assess_incident pe server..."):
-                        thread = client.threads.create()
-                        st.session_state["thread_id"] = thread["thread_id"]
-                        _run_graph(
-                            input_payload={
-                                "cluster": selected.model_dump(mode="json"),
-                                "summaries": summaries,
-                            }
-                        )
-                    st.session_state["wizard_step"] = 2
-                    st.rerun()
+                        with st.spinner("Se creează thread-ul și rulează node_assess_incident pe server..."):
+                            thread = client.threads.create()
+                            st.session_state["thread_id"] = thread["thread_id"]
+                            # inregistrat inainte de rulare: clusterul apare "in evaluare" chiar daca runul esueaza
+                            st.session_state["cluster_threads"][selected.cluster_id] = thread["thread_id"]
+                            st.session_state["decision_reason"] = ""
+                            _run_graph(
+                                input_payload={
+                                    "cluster": selected.model_dump(mode="json"),
+                                    "summaries": summaries,
+                                }
+                            )
+                        st.session_state["wizard_step"] = 2
+                        st.rerun()
+                else:
+                    button_label = "Vezi rezultatul" if code in DONE_CODES else "Continuă evaluarea"
+                    if st.button(button_label):
+                        st.session_state["thread_id"] = threads[selected.cluster_id]
+                        st.session_state["wizard_step"] = OPEN_STEP[code]
+                        st.rerun()
+
+        _render_unclustered(
+            st.session_state["detection_result"],
+            {t["key"]: t for t in st.session_state["detection_result"]["tickets"]},
+        )
 
 # ===========================================================================
 # PASUL 3 - Evaluare AI (LLM + RAG) - Executat în LangGraph Server
@@ -565,22 +741,25 @@ elif step == 3:
                 st.rerun()
 
     elif user_approved is None:
+        reason = st.text_input(
+            "Motiv (recomandat la respingere)",
+            key="decision_reason",
+            placeholder="ex.: un singur utilizator afectat, nu e incident major",
+        )
         col_a, col_b = st.columns(2)
         with col_a:
             if st.button("Aprobă Major Incident"):
                 with st.spinner("Se transmite decizia către LangGraph (resume)..."):
-                    _run_graph(resume={"approved": True})
-                mi = _get_thread_state()["values"].get("major_incident")
-                if mi:
-                    st.session_state["major_incidents"].append(mi)
+                    _run_graph(resume={"approved": True, "decided_by": DECIDED_BY})
                 st.rerun()
         with col_b:
             if st.button("Respinge"):
                 with st.spinner("Se transmite respingerea către LangGraph (resume)..."):
-                    _run_graph(resume={"approved": False, "reason": "Respins manual"})
-                mi = _get_thread_state()["values"].get("major_incident")
-                if mi:
-                    st.session_state["major_incidents"].append(mi)
+                    _run_graph(resume={
+                        "approved": False,
+                        "reason": reason.strip(),
+                        "decided_by": DECIDED_BY,
+                    })
                 st.rerun()
     else:
         status_label = "Declared" if user_approved else "Rejected"
@@ -629,21 +808,54 @@ elif step == 4:
         comm_approvals = values.get("user_approved_communications", {})
 
         if drafts:
-            for audience, draft in drafts.items():
-                label = "End users" if audience == "end_users" else "Management"
-                with st.container(border=True):
-                    st.markdown(f'<div class="mia-comm-label">{label}</div>', unsafe_allow_html=True)
-                    st.markdown(f"**{draft['subject']}**")
-                    st.write(draft["body"])
-                    st.caption(f"Surse: {', '.join(draft['rag_sources'])}")
+            thread_id = st.session_state["thread_id"]
+            edited_audiences = values.get("communication_edits") or {}
+            labels = {"end_users": "End users", "management": "Management"}
 
-            if not comm_approvals:
-                if st.button("Aprobă și Finalizează Comunicările"):
-                    with st.spinner("Se confirmă aprobarea comunicatelor în LangGraph..."):
-                        _run_graph(resume={"approved_users": True, "approved_mgmt": True})
-                    st.rerun()
-            else:
+            if comm_approvals:
+                # Dupa aprobare: text final, doar pentru citire
+                for audience, draft in drafts.items():
+                    with st.container(border=True):
+                        st.markdown(f'<div class="mia-comm-label">{labels.get(audience, audience)}</div>', unsafe_allow_html=True)
+                        st.markdown(f"**{draft['subject']}**")
+                        st.write(draft["body"])
+                        note = "editat de operator" if audience in edited_audiences else "text generat, needitat"
+                        st.caption(f"Surse: {', '.join(draft['rag_sources'])} · {note}")
                 st.markdown('<span class="mia-status approved">Comunicări Aprobate</span>', unsafe_allow_html=True)
+            else:
+                st.caption("Poți edita subiectul și textul înainte de aprobare. Versiunea finală (și originalul) se salvează.")
+                edits: dict[str, dict] = {}
+                approvals: dict[str, bool] = {}
+                invalid = False
+                for audience, draft in drafts.items():
+                    with st.container(border=True):
+                        st.markdown(f'<div class="mia-comm-label">{labels.get(audience, audience)}</div>', unsafe_allow_html=True)
+                        subject = st.text_input(
+                            "Subiect", value=draft["subject"], key=f"comm_subject_{thread_id}_{audience}"
+                        )
+                        body = st.text_area(
+                            "Text", value=draft["body"], height=220, key=f"comm_body_{thread_id}_{audience}"
+                        )
+                        st.caption(f"Surse: {', '.join(draft['rag_sources'])}")
+                        approvals[audience] = st.checkbox(
+                            "Aprobă această comunicare", value=True, key=f"comm_ok_{thread_id}_{audience}"
+                        )
+                        if not subject.strip() or not body.strip():
+                            invalid = True
+                            st.error("Subiectul și textul nu pot fi goale.")
+                        elif subject.strip() != draft["subject"] or body.strip() != draft["body"]:
+                            edits[audience] = {"subject": subject.strip(), "body": body.strip()}
+                            st.caption("Modificat față de textul generat.")
+
+                if st.button("Aprobă și Finalizează Comunicările", disabled=invalid):
+                    with st.spinner("Se confirmă aprobarea comunicatelor în LangGraph..."):
+                        _run_graph(resume={
+                            "approved_users": approvals.get("end_users", False),
+                            "approved_mgmt": approvals.get("management", False),
+                            "edits": edits,
+                            "decided_by": DECIDED_BY,
+                        })
+                    st.rerun()
 
             col_a, col_b = st.columns([1, 5])
             with col_a:
@@ -703,31 +915,52 @@ elif step == 5:
 
         st.markdown(f"**LangGraph State Status:** `{final_status}`")
 
-    if st.button("Începe un incident nou"):
-        # Curatare completa DOAR dupa finalizarea procesului: mock + tabel local, apoi flux nou
-        _mock_post("/mock/reset")
-        ticket_store.reset_db()
-        _mock_post("/mock/start")
-        _reset_flow()
-        st.rerun()
+    col_a, col_b = st.columns([1, 5])
+    with col_a:
+        if st.button("Înapoi la clustere"):
+            # clusterele detectate si thread-urile lor se pastreaza; se alege urmatorul neevaluat
+            st.session_state["selected_cluster_id"] = None
+            st.session_state["wizard_step"] = 1
+            st.rerun()
+    with col_b:
+        if st.button("Începe un incident nou"):
+            # Curatare completa DOAR dupa finalizarea procesului: mock + tabel local, apoi flux nou.
+            # audit.db (decizii + audit) NU se sterge.
+            _mock_post("/mock/reset")
+            ticket_store.reset_db()
+            _mock_post("/mock/start")
+            _reset_flow()
+            st.rerun()
 
 # ---------------------------------------------------------------------------
-# Istoric decizii - vizibil indiferent de pasul curent
+# Istoric decizii (din audit.db) - vizibil indiferent de pasul curent
 # ---------------------------------------------------------------------------
 st.divider()
-st.subheader("Istoric decizii (sesiunea curentă)")
-history = st.session_state["major_incidents"]
+st.subheader("Istoric decizii")
+try:
+    history = audit_store.list_decisions(limit=50)
+except Exception as exc:  # noqa: BLE001
+    history = []
+    st.warning(f"Nu pot citi istoricul din audit.db: {exc}")
+
 if not history:
     st.caption("Nicio decizie înregistrată încă.")
 else:
-    history_rows = [
-        {
-            "Incident": mi["incident_id"],
-            "Status": mi["status"],
-            "Severitate": mi["severity"],
-            "Decis de": mi["declared_by"],
-            "Data/ora (UTC)": _fmt_ts(mi.get("declared_at")),
-        }
-        for mi in reversed(history)
-    ]
-    st.dataframe(history_rows, hide_index=True, use_container_width=True)
+    st.caption("Incidentele declarate apar după aprobarea comunicărilor; respingerile, imediat.")
+    st.dataframe(
+        [
+            {
+                "Incident": d["incident_id"],
+                "Rezultat": "Declarat" if d["outcome"] == "declared" else "Respins",
+                "Severitate": d["severity"],
+                "Serviciu": d["service"],
+                "Tichete": d["ticket_count"],
+                "Decis de": d["decided_by"],
+                "Data/ora (UTC)": _fmt_ts(d["decided_at"]),
+                "Motiv": d["reason"] or "",
+            }
+            for d in history
+        ],
+        hide_index=True,
+        use_container_width=True,
+    )

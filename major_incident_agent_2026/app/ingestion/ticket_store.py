@@ -148,3 +148,9 @@ def list_raw_issues(limit: int = 1000, db_path: Optional[Path] = None) -> list[d
 def count_tickets(db_path: Optional[Path] = None) -> int:
     with _connect(db_path) as conn:
         return conn.execute("SELECT COUNT(*) AS n FROM tickets").fetchone()["n"]
+
+def get_raw_issue(key: str, db_path: Optional[Path] = None) -> Optional[dict[str, Any]]:
+    """Issue-ul Jira complet pentru un tichet (None daca nu exista)."""
+    with _connect(db_path) as conn:
+        row = conn.execute("SELECT raw_json FROM tickets WHERE key = ?", (key,)).fetchone()
+    return json.loads(row["raw_json"]) if row else None

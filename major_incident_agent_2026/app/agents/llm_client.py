@@ -37,6 +37,14 @@ GROQ_JSON_SCHEMA_MODELS = {
 }
 
 
+_LAST_LABEL: str | None = None
+
+
+def last_llm_label() -> str | None:
+    """Eticheta ultimului apel LLM reusit, ex. 'openai/gpt-oss-120b (groq)'. None daca nu a existat inca."""
+    return _LAST_LABEL
+
+
 class LlmGenerationError(Exception):
     """Ridicata cand LLM-ul e inaccesibil sau output-ul nu e JSON valid, dupa retry."""
 
@@ -214,9 +222,15 @@ def generate_structured_json(
             errors.append(f"{name}: provider necunoscut (folosește 'ollama' sau 'groq')")
             continue
         try:
-            return generate(prompt, json_schema, system, max_retries, temperature)
+            result = generate(prompt, json_schema, system, max_retries, temperature)
         except LlmGenerationError as exc:
             errors.append(f"{name}: {exc}")
+            continue
+
+        global _LAST_LABEL
+        model = getattr(settings, "groq_llm_model" if name == "groq" else "ollama_llm_model", None) or "unknown"
+        _LAST_LABEL = f"{model} ({name})"
+        return result
 
     raise LlmGenerationError(" | ".join(errors))
 
