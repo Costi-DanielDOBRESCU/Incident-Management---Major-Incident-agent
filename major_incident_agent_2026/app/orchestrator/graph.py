@@ -110,13 +110,19 @@ def node_assess_incident(state: IncidentState) -> dict:
 
 
 def node_human_review_incident(state: IncidentState) -> dict:
-    """Nod 2 (HITL #1): decizia omului asupra declararii."""
+    """
+    Nod 2 (HITL #1): decizia omului asupra declararii. Se ruleaza SI cand Assessment nu a propus incident:
+    omul confirma ca nu e incident (approved=False) sau il declara el (approved=True, cu severitate aleasa).
+    """
     assessment = _as(IncidentAssessment, state.get("assessment"))
     cluster = _as(IncidentCluster, state.get("cluster"))
+    ai_candidate = bool(assessment and assessment.is_major_incident_candidate)
 
     raw = interrupt({
         "action": "REVIEW_INCIDENT_DECLARATION",
-        "message": "Revizuieste propunerea de Incident Major",
+        "message": "Revizuieste propunerea de Incident Major" if ai_candidate
+        else "Assessment nu a propus incident major: confirma sau declara tu incidentul",
+        "ai_candidate": ai_candidate,
         "assessment": assessment.model_dump() if assessment else None,
     })
 
@@ -128,16 +134,26 @@ def node_human_review_incident(state: IncidentState) -> dict:
 
     cluster_id = cluster.cluster_id if cluster else "UNKNOWN"
     incident_id = _incident_id(state, cluster_id)
-    severity = assessment.estimated_severity if assessment else "SEV2"
+    if approved and not ai_candidate:
+        # AI nu a propus incident: severitatea o alege omul (SEV1/SEV2); orice altceva -> SEV2
+        requested = str(human.get("severity") or "").upper()
+        severity = requested if requested in ("SEV1", "SEV2") else "SEV2"
+    else:
+        severity = assessment.estimated_severity if assessment else "SEV2"
+
+    if ai_candidate:
+        action = "approve_major_incident" if approved else "reject_major_incident"
+    else:
+        action = "declare_major_incident" if approved else "confirm_not_incident"
 
     _audit(
         decided_by,
-        "approve_major_incident" if approved else "reject_major_incident",
+        action,
         incident_id=incident_id,
         input_ref=cluster_id,
         output_ref="Declared" if approved else "Rejected",
         rag_sources=list(assessment.rag_sources) if assessment else [],
-        based_on={"severity": severity, "reason": reason or None},
+        based_on={"severity": severity, "reason": reason or None, "ai_candidate": ai_candidate},
     )
 
     if approved:
@@ -265,10 +281,33 @@ def node_human_review_communication(state: IncidentState) -> dict:
 
 
 def _build_decision(state: IncidentState) -> dict:
-    """Decizia umana, ca dict pentru audit_store / incident_memory. Doar date deja validate (Pydantic)."""
+    """
+    Decizia ca dict pentru audit_store / incident_memory. Doar date deja validate (Pydantic).
+    outcome: declared | rejected (decizie umana) sau dismissed (Assessment nu a propus incident; fara decizie umana).
+    """
     cluster = _as(IncidentCluster, state["cluster"])
     assessment = _as(IncidentAssessment, state.get("assessment"))
-    incident = _as(MajorIncident, state["major_incident"])
+    incident = _as(MajorIncident, state.get("major_incident"))
+    now = datetime.now(timezone.utc)
+
+    if incident is None:
+        # Nu a existat review uman: Assessment a spus ca nu e candidat. Se pastreaza in istoric, nu in memoria de decizii umane.
+        return {
+            "incident_id": state.get("incident_id") or f"MI-{cluster.cluster_id}",
+            "cluster_id": cluster.cluster_id,
+            "service": assessment.affected_service if assessment else cluster.service_guess,
+            "severity": assessment.estimated_severity if assessment else None,
+            "outcome": "dismissed",
+            "reason": (assessment.reasoning[:300] if assessment else None),
+            "decided_by": "assessment_agent",
+            "decided_at": now.isoformat(),
+            "ticket_ids": list(cluster.ticket_ids),
+            "ticket_count": cluster.ticket_count,
+            "summaries": list(state.get("summaries") or []),
+            "assessment": assessment.model_dump() if assessment else None,
+            "communications": None,
+        }
+
     approved = state.get("user_approved_incident") is True
 
     communications = None
@@ -299,7 +338,7 @@ def _build_decision(state: IncidentState) -> dict:
         "outcome": "declared" if approved else "rejected",
         "reason": state.get("rejection_reason") or None,
         "decided_by": state.get("decided_by") or DEFAULT_USER,
-        "decided_at": (incident.declared_at or datetime.now(timezone.utc)).isoformat(),
+        "decided_at": (incident.declared_at or now).isoformat(),
         "ticket_ids": list(cluster.ticket_ids),
         "ticket_count": cluster.ticket_count,
         "summaries": list(state.get("summaries") or []),
@@ -324,6 +363,10 @@ def node_persist_and_learn(state: IncidentState) -> dict:
         output_ref=decision["outcome"],
     )
 
+    if decision["outcome"] == "dismissed":
+        # memoria de incidente contine doar decizii UMANE (declared/rejected)
+        return {"decision_saved": True, "final_status": "DISMISSED_BY_ASSESSMENT"}
+
     try:
         from app.execution.incident_memory import remember_decision
 
@@ -343,15 +386,6 @@ def node_persist_and_learn(state: IncidentState) -> dict:
 # ==========================================
 # 2. ROUTARE
 # ==========================================
-def route_after_assessment(
-    state: IncidentState,
-) -> Literal["node_human_review_incident", "__end__"]:
-    assessment = _as(IncidentAssessment, state.get("assessment"))
-    if assessment and assessment.is_major_incident_candidate:
-        return "node_human_review_incident"
-    return END  # nepropus de Assessment: doar audit, nu se persista ca decizie umana
-
-
 def route_after_incident_review(
     state: IncidentState,
 ) -> Literal["node_generate_communications", "node_persist_and_learn"]:
@@ -374,11 +408,8 @@ def create_workflow():
 
     builder.set_entry_point("node_assess_incident")
 
-    builder.add_conditional_edges(
-        "node_assess_incident",
-        route_after_assessment,
-        {"node_human_review_incident": "node_human_review_incident", END: END},
-    )
+    # Orice cluster evaluat trece prin om, chiar daca Assessment nu l-a propus ca incident
+    builder.add_edge("node_assess_incident", "node_human_review_incident")
     builder.add_conditional_edges(
         "node_human_review_incident",
         route_after_incident_review,

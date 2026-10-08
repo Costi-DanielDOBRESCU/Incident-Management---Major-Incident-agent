@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS incident_decisions (
     cluster_id     TEXT NOT NULL,
     service        TEXT,
     severity       TEXT,
-    outcome        TEXT NOT NULL,      -- declared | rejected
+    outcome        TEXT NOT NULL,      -- declared | rejected (decizie umana) | dismissed (nepropus de Assessment)
     reason         TEXT,
     decided_by     TEXT,
     decided_at     TEXT,
@@ -153,11 +153,12 @@ def list_audit_events(
 # ---------------------------------------------------------------------------
 def save_decision(decision: dict[str, Any], db_path: Optional[Path] = None) -> None:
     """
-    Upsert dupa incident_id. Campuri obligatorii: incident_id, cluster_id, outcome ('declared'|'rejected').
+    Upsert dupa incident_id. Campuri obligatorii: incident_id, cluster_id, outcome
+    ('declared'|'rejected' = decizie umana, 'dismissed' = cluster nepropus de Assessment, fara decizie umana).
     Campurile JSON (ticket_ids, summaries, assessment, communications) se primesc ca obiecte Python.
     """
-    if decision.get("outcome") not in ("declared", "rejected"):
-        raise ValueError("outcome trebuie sa fie 'declared' sau 'rejected'.")
+    if decision.get("outcome") not in ("declared", "rejected", "dismissed"):
+        raise ValueError("outcome trebuie sa fie 'declared', 'rejected' sau 'dismissed'.")
     for required in ("incident_id", "cluster_id"):
         if not decision.get(required):
             raise ValueError(f"Campul '{required}' este obligatoriu.")

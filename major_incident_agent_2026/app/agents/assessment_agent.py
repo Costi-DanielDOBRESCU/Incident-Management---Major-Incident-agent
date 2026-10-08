@@ -13,6 +13,10 @@ NU sunt cerute LLM-ului, ca sa nu introducem inconsistente inutile:
 LLM-ul e intrebat DOAR pentru partea de judecata: is_major_incident_candidate,
 confidence, estimated_severity, reasoning, recommended_action.
 
+Memoria de incidente (app/execution/incident_memory.py): deciziile umane trecute pe acelasi serviciu
+sunt adaugate in prompt ca CONTEXT ORIENTATIV (id-uri MEM-... in rag_sources). Tichetele curente si
+regulile din runbook decid.
+
 Referinta: Documentatie_RO.md sectiunea 4.2 (Assessment Agent), 5.1
 (IncidentAssessment), 6.2 (contract reasoning), 6.4 (flux).
 """
@@ -26,6 +30,7 @@ from app.models.schemas import IncidentAssessment, IncidentCluster
 from app.rag.chroma_client import COLLECTION_HISTORICAL, COLLECTION_RUNBOOKS
 from app.rag.query import query_knowledge_base
 from app.agents.decision_rules import enforce_decision_consistency
+from app.execution.incident_memory import search_memory
 # Campuri completate determinist de noi, NU cerute LLM-ului (vezi docstring modul).
 _DETERMINISTIC_FIELDS = ("cluster_id", "affected_service", "rag_sources")
 
@@ -54,6 +59,25 @@ def _llm_output_schema() -> dict:
 def _build_rag_query_text(cluster: IncidentCluster, ticket_summaries: list[str]) -> str:
     sample = "; ".join(ticket_summaries[:3]) if ticket_summaries else cluster.service_guess
     return f"{cluster.service_guess}: {sample}"
+
+
+def _memory_section(memory_context: list[dict]) -> str:
+    """Sectiunea din prompt cu deciziile umane trecute. Goala cand nu exista nimic (promptul ramane neschimbat)."""
+    if not memory_context:
+        return ""
+
+    lines = "\n".join(
+        f"  [{doc['doc_id']}] (human decision: {doc.get('outcome', '?')}"
+        f"{' ' + doc['severity'] if doc.get('severity') else ''}; similarity {doc['score']}): {doc['content']}"
+        for doc in memory_context
+    )
+    return (
+        "PAST HUMAN DECISIONS ON SIMILAR CLUSTERS "
+        "(informative only; current tickets and runbook rules decide):\n"
+        f"{lines}\n"
+        "These are earlier operator decisions, not confirmed root causes. Never let them override the "
+        "current tickets or the runbook thresholds.\n\n"
+    )
 
 
 # def _build_prompt(
@@ -174,6 +198,7 @@ def _build_prompt(
     ticket_summaries: list[str],
     historical_context: list[dict],
     runbook_context: list[dict],
+    memory_context: list[dict] | None = None,
 ) -> str:
     summaries_block = "\n".join(f"  - {s}" for s in ticket_summaries) or "  (no details)"
 
@@ -184,6 +209,8 @@ def _build_prompt(
     runbook_block = "\n".join(
         f"  [{doc['doc_id']}]: {doc['content']}" for doc in runbook_context
     ) or "  (none)"
+
+    memory_block = _memory_section(memory_context or [])
 
     duration_minutes = round((cluster.window_end - cluster.window_start).total_seconds() / 60, 1)
 
@@ -200,7 +227,7 @@ TICKETS:
 HISTORICAL CONTEXT:
 {historical_block}
 
-RUNBOOK SEVERITY RULES:
+{memory_block}RUNBOOK SEVERITY RULES:
 {runbook_block}
 
 EVALUATION RULES:
@@ -233,6 +260,7 @@ Respond STRICTLY in valid JSON.
 def assess_incident(
     cluster: IncidentCluster,
     ticket_summaries: list[str] | None = None,
+    use_memory: bool = True,
 ) -> IncidentAssessment:
     """
     Evalueaza un IncidentCluster si produce un IncidentAssessment validat.
@@ -243,6 +271,9 @@ def assess_incident(
             din cluster, pentru context in prompt. Optional - daca lipseste,
             se foloseste doar service_guess. Apelantul (orchestrator) e cel
             care are acces la tichetele brute, nu acest modul.
+        use_memory: daca True, adauga in prompt deciziile umane trecute pe acelasi serviciu
+            (context orientativ, id-uri MEM-... in rag_sources). Evaluarile de benchmark
+            (scripts/eval_assessment.py) il folosesc cu False, pentru rezultate reproductibile.
 
     Raises:
         AssessmentError: daca LLM-ul nu raspunde sau output-ul nu valideaza
@@ -256,11 +287,16 @@ def assess_incident(
     historical_context = query_knowledge_base(
         query_text, COLLECTION_HISTORICAL, n_results=3, service_filter=cluster.service_guess
     )
+    # 3 = toate runbook-urile unui serviciu (severitate, triere, non-incident). Cu top-2, runbook-ul de severitate
+    # lipsea in 5/18 incidente (vezi scripts/eval_retrieval.py), iar LLM-ul compara cu praguri pe care nu le vedea.
     runbook_context = query_knowledge_base(
-        query_text, COLLECTION_RUNBOOKS, n_results=2, service_filter=cluster.service_guess
+        query_text, COLLECTION_RUNBOOKS, n_results=3, service_filter=cluster.service_guess
     )
 
-    prompt = _build_prompt(cluster, ticket_summaries, historical_context, runbook_context)
+    # search_memory intoarce lista goala daca memoria e goala sau indisponibila (nu opreste evaluarea)
+    memory_context = search_memory(query_text, service=cluster.service_guess) if use_memory else []
+
+    prompt = _build_prompt(cluster, ticket_summaries, historical_context, runbook_context, memory_context)
     schema = _llm_output_schema()
 
     try:
@@ -275,7 +311,11 @@ def assess_incident(
 
     llm_output = enforce_decision_consistency(llm_output)
 
-    rag_sources = [doc["doc_id"] for doc in historical_context] + [doc["doc_id"] for doc in runbook_context]
+    rag_sources = (
+        [doc["doc_id"] for doc in historical_context]
+        + [doc["doc_id"] for doc in runbook_context]
+        + [doc["doc_id"] for doc in memory_context]
+    )
 
     full_output = {
         **llm_output,

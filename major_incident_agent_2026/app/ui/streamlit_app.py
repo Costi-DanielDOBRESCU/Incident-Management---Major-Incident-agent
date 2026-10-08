@@ -17,7 +17,9 @@ Pornire (2 terminale, cu venv activ):
 
 from __future__ import annotations
 
+from collections import Counter
 from datetime import datetime
+from html import escape
 
 import httpx
 import streamlit as st
@@ -43,6 +45,11 @@ ticket_store.init_db()
 
 # Operatorul care ia deciziile (trimis la resume si salvat in audit)
 DECIDED_BY = st.sidebar.text_input("Operator", value="demo_user").strip() or "demo_user"
+
+VIEW_FLOW = "Flux incident"
+VIEW_HISTORY = "Istoric incidente"
+st.sidebar.divider()
+VIEW = st.sidebar.radio("Navigare", [VIEW_FLOW, VIEW_HISTORY], key="nav_view")
 
 
 # ---------------------------------------------------------------------------
@@ -99,12 +106,14 @@ def _cluster_status(thread_id: str | None) -> tuple[str, str]:
     if not values.get("assessment"):
         return "pending", "în evaluare"
     approved = values.get("user_approved_incident")
+    ai_candidate = values["assessment"].get("is_major_incident_candidate", True)
     if approved is True:
+        suffix = "" if ai_candidate else " (nepropus de AI)"
         if values.get("user_approved_communications"):
-            return "declared", "declarat"
-        return "comms", "declarat, comunicări neaprobate"
+            return "declared", f"declarat{suffix}"
+        return "comms", f"declarat{suffix}, comunicări neaprobate"
     if approved is False:
-        return "rejected", "respins"
+        return "rejected", "respins" if ai_candidate else "nu e incident (confirmat)"
     if state.get("next"):
         return "awaiting", "așteaptă decizia"
     return "not_candidate", "nu e candidat"
@@ -168,6 +177,19 @@ st.markdown(
         font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
         font-size: 0.82rem; color: var(--mia-text);
     }
+    .mia-card {
+        background-color: var(--mia-surface);
+        border: 1px solid var(--mia-border);
+        border-radius: 3px;
+        padding: 1rem 1.25rem;          /* acelasi spatiu sus si jos fata de text */
+        margin-bottom: 0.75rem;
+    }
+    .mia-card .mia-cluster-title { margin: 0 0 0.4rem 0; line-height: 1.4; }
+    .mia-card .mia-meta { margin: 0; line-height: 1.4; }
+
+    /* chip-urile din filtre (multiselect) in culoarea aplicatiei, chiar daca tema nu e preluata */
+    span[data-baseweb="tag"] { background-color: var(--mia-accent) !important; color: #FFFFFF !important; }
+
     .mia-cluster-title { display: flex; align-items: baseline; gap: 0.6rem; font-size: 1rem; }
     .mia-cluster-title .id { font-weight: 600; }
     .mia-cluster-title .service { color: var(--mia-text-muted); }
@@ -258,6 +280,32 @@ def _fmt_ts(value: str | None) -> str:
     return str(value)[:19].replace("T", " ")
 
 
+OUTCOME_LABELS = {
+    "declared": "Declarat",
+    "declared_override": "Declarat (nepropus de AI)",
+    "rejected": "Respins",
+    "confirmed_not_incident": "Nu e incident (confirmat)",
+    "dismissed": "Nepropus de AI (fără review)",  # doar inregistrari mai vechi
+}
+
+
+def _outcome_key(d: dict) -> str:
+    """Categoria afisata pentru o decizie salvata: combina decizia omului cu propunerea AI."""
+    if d["outcome"] == "dismissed":
+        return "dismissed"
+    ai_candidate = (d.get("assessment") or {}).get("is_major_incident_candidate", True)
+    if d["outcome"] == "declared":
+        return "declared" if ai_candidate else "declared_override"
+    return "rejected" if ai_candidate else "confirmed_not_incident"
+
+
+def _decision_label(ai_candidate: bool, approved: bool) -> str:
+    """Eticheta deciziei umane pentru pasul de aprobare si sumar."""
+    if ai_candidate:
+        return "Declared" if approved else "Rejected"
+    return "Declarat (nepropus de AI)" if approved else "Nu e incident (confirmat)"
+
+
 def _fmt_clock(value: str) -> str:
     """ISO string -> 'HH:MM:SS'."""
     return _fmt_ts(value)[11:19]
@@ -295,7 +343,7 @@ def _tickets_table(tickets: list[dict]) -> list[dict]:
 
 
 STEPS = [
-    "Sosire tichete",
+    "Tichete",
     "Detectie & clustering",
     "Evaluare AI (LLM + RAG)",
     "Aprobare humana",
@@ -434,6 +482,225 @@ def _render_unclustered(detection: dict, tickets_by_key: dict) -> None:
                 st.caption(f"Marcat de {review['reviewed_by']} la {_fmt_ts(review['reviewed_at'])} UTC")
 
 
+ACTION_LABELS = {
+    "propose_major_incident": "Propus de AI",
+    "assess_not_candidate": "Nepropus de AI",
+    "approve_major_incident": "Incident aprobat",
+    "reject_major_incident": "Incident respins",
+    "confirm_not_incident": "Confirmat: nu e incident",
+    "declare_major_incident": "Declarat de operator (nepropus de AI)",
+    "draft_communication": "Comunicare generată",
+    "edit_communication": "Comunicare editată",
+    "approve_communication": "Comunicare aprobată",
+    "reject_communication": "Comunicare neaprobată",
+    "save_decision": "Decizie salvată",
+    "remember_decision": "Salvat în memorie",
+    "remember_decision_failed": "Eroare la salvarea în memorie",
+}
+AUDIENCE_LABELS = {"end_users": "End users", "management": "Management"}
+
+
+def _render_incident_detail(d: dict) -> None:
+    """Analiza detaliata a unui incident din istoric (decizie, evaluare AI, comunicari, cronologie, tichete)."""
+    key = _outcome_key(d)
+    css = "declared" if key in ("declared", "declared_override") else "rejected"
+
+    st.divider()
+    st.subheader(d["incident_id"])
+    st.markdown(
+        f'<div class="mia-meta">'
+        f'<span class="mia-status {css}">{OUTCOME_LABELS[key]}</span>'
+        f'&nbsp;&nbsp;{_severity_badge(d["severity"] or "N/A")}'
+        f'&nbsp;&nbsp;{escape(str(d["service"] or "N/A"))} &nbsp;|&nbsp; {d["ticket_count"] or 0} tichete'
+        f' &nbsp;|&nbsp; decis de <strong>{escape(str(d["decided_by"] or "N/A"))}</strong>'
+        f' la {_fmt_ts(d["decided_at"])} UTC'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    tab_decision, tab_ai, tab_comms, tab_timeline, tab_tickets = st.tabs(
+        ["Decizie", "Evaluare AI", "Comunicări", "Cronologie (audit)", "Tichete"]
+    )
+
+    with tab_decision:
+        st.markdown(f"**Cluster:** `{d['cluster_id']}`")
+        verdicts = {
+            "declared": "propus de AI și declarat de operator ca incident major.",
+            "declared_override": "AI nu l-a propus, dar operatorul l-a declarat incident major.",
+            "rejected": "propus de AI, dar respins de operator.",
+            "confirmed_not_incident": "AI nu l-a propus, iar operatorul a confirmat că nu e incident major.",
+            "dismissed": "AI nu l-a propus; nu a existat decizie umană (înregistrare mai veche).",
+        }
+        st.markdown(f"**Rezultat:** {verdicts[key]}")
+        if d.get("reason"):
+            label = "Raționamentul AI (început)" if key == "dismissed" else "Motiv"
+            st.markdown(f"**{label}:**")
+            st.write(d["reason"])
+
+    with tab_ai:
+        a = d.get("assessment")
+        if not a:
+            st.info("Nu există o evaluare AI salvată.")
+        else:
+            st.markdown(
+                f'<div class="mia-meta">{_severity_badge(a["estimated_severity"])}'
+                f'&nbsp;&nbsp;Candidat Major Incident: <strong>{"da" if a["is_major_incident_candidate"] else "nu"}</strong>'
+                f'&nbsp;&nbsp;Confidence: <strong>{a["confidence"]:.2f}</strong>'
+                f'&nbsp;&nbsp;Acțiune recomandată: <span class="mia-mono">{a["recommended_action"]}</span></div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown("**Raționament**")
+            st.write(a["reasoning"])
+            sources = a.get("rag_sources") or []
+            st.markdown("**Surse RAG**")
+            st.caption(", ".join(sources) if sources else "(fără surse)")
+            if any(s.startswith("MEM-") for s in sources):
+                st.caption("Evaluarea a folosit și decizii umane anterioare (surse MEM-…).")
+
+    with tab_comms:
+        comms = d.get("communications")
+        if not comms:
+            st.info("Nu au fost generate comunicări (incidentul nu a fost declarat).")
+        else:
+            for audience, c in comms.items():
+                with st.container(border=True):
+                    st.markdown(
+                        f'<div class="mia-comm-label">{AUDIENCE_LABELS.get(audience, audience)}</div>',
+                        unsafe_allow_html=True,
+                    )
+                    status = "aprobată" if c.get("approved") else "neaprobată"
+                    note = "editată de operator" if c.get("edited") else "text generat, needitat"
+                    st.caption(f"{status} · {note}")
+                    st.markdown(f"**{c['subject']}**")
+                    st.write(c["body"])
+                    st.caption(f"Surse: {', '.join(c.get('rag_sources') or []) or '(fără surse)'}")
+                    if c.get("edited"):
+                        with st.expander("Text original generat de AI"):
+                            st.markdown(f"**{c.get('original_subject', '')}**")
+                            st.write(c.get("original_body", ""))
+
+    with tab_timeline:
+        try:
+            events = list(reversed(audit_store.list_audit_events(limit=500, incident_id=d["incident_id"])))
+        except Exception as exc:  # noqa: BLE001
+            events = []
+            st.warning(f"Nu pot citi cronologia: {exc}")
+        if not events:
+            st.info("Nu există evenimente de audit pentru acest incident.")
+        else:
+            st.dataframe(
+                [
+                    {
+                        "Ora (UTC)": _fmt_ts(e["timestamp"]),
+                        "Cine": e["actor"],
+                        "Acțiune": ACTION_LABELS.get(e["action"], e["action"]),
+                        "Detalii": e["output_ref"] or e["input_ref"] or "",
+                        "Model": e["model"] or "",
+                        "Surse": ", ".join(e["rag_sources"]),
+                    }
+                    for e in events
+                ],
+                hide_index=True,
+                use_container_width=True,
+            )
+
+    with tab_tickets:
+        ticket_ids = d.get("ticket_ids") or []
+        summaries = d.get("summaries") or []
+        st.markdown("**Rezumatele trimise la evaluare**")
+        for s in summaries:
+            st.markdown(f"- {s}")
+        st.markdown(f"**Tichete din cluster ({len(ticket_ids)})**")
+        st.caption(
+            "Detaliile complete sunt disponibile doar cât timp baza locală de tichete nu a fost "
+            "resetată (butonul „Începe un incident nou”)."
+        )
+        for tkey in ticket_ids:
+            issue = ticket_store.get_raw_issue(tkey)
+            if issue:
+                title = issue["fields"].get("summary", "")
+                with st.expander(f"{tkey} · {title[:90]}"):
+                    _ticket_details(issue, key_prefix=f"hist_{d['incident_id']}")
+            else:
+                st.caption(f"{tkey} (detalii indisponibile)")
+
+
+def _render_history_page() -> None:
+    """Pagina 'Istoric incidente': toate clusterele evaluate, cu filtre si analiza detaliata la selectie."""
+    st.title("Istoric incidente")
+    st.caption(
+        "Toate clusterele evaluate: decizii umane și clustere nepropuse de AI. "
+        "Selectează un rând din tabel pentru analiza detaliată."
+    )
+
+    try:
+        decisions = audit_store.list_decisions(limit=500)
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"Nu pot citi istoricul din audit.db: {exc}")
+        return
+    if not decisions:
+        st.info("Nicio decizie înregistrată încă.")
+        return
+
+    counts = Counter(_outcome_key(d) for d in decisions)
+    declared = counts.get("declared", 0) + counts.get("declared_override", 0)
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Total", len(decisions))
+    m2.metric("Declarate", declared)
+    m3.metric("Nu sunt incidente", len(decisions) - declared)
+    m4.metric("Operator ≠ propunerea AI", counts.get("declared_override", 0) + counts.get("rejected", 0))
+
+    f1, f2, f3 = st.columns(3)
+    outcomes = f1.multiselect(
+        "Rezultat", options=list(OUTCOME_LABELS), default=list(OUTCOME_LABELS), format_func=OUTCOME_LABELS.get
+    )
+    services = f2.multiselect(
+        "Serviciu", options=sorted({d["service"] for d in decisions if d["service"]}), placeholder="Toate serviciile"
+    )
+    severities = f3.multiselect(
+        "Severitate", options=sorted({d["severity"] for d in decisions if d["severity"]}), placeholder="Toate"
+    )
+
+    filtered = [
+        d for d in decisions
+        if _outcome_key(d) in outcomes
+        and (not services or d["service"] in services)
+        and (not severities or d["severity"] in severities)
+    ]
+    if not filtered:
+        st.info("Niciun rezultat pentru filtrele alese.")
+        return
+
+    # cheia depinde de filtre: selectia se reseteaza cand se schimba lista afisata
+    table_key = "history_table_" + "|".join([",".join(sorted(outcomes)), ",".join(services), ",".join(severities)])
+    event = st.dataframe(
+        [
+            {
+                "Incident": d["incident_id"],
+                "Rezultat": OUTCOME_LABELS[_outcome_key(d)],
+                "Severitate": d["severity"],
+                "Serviciu": d["service"],
+                "Tichete": d["ticket_count"],
+                "Decis de": d["decided_by"],
+                "Data/ora (UTC)": _fmt_ts(d["decided_at"]),
+                "Motiv": d["reason"] or "",
+            }
+            for d in filtered
+        ],
+        hide_index=True,
+        use_container_width=True,
+        on_select="rerun",
+        selection_mode="single-row",
+        key=table_key,
+    )
+
+    selected = event.selection.rows
+    if selected and selected[0] < len(filtered):
+        _render_incident_detail(filtered[selected[0]])
+    else:
+        st.caption("Selectează un incident din tabel pentru a-i vedea detaliile.")
+
+
 @st.fragment(run_every=2)
 def _live_tickets_view() -> None:
     """Tabelul cu tichete, reimprospatat automat la 2s."""
@@ -485,7 +752,10 @@ if not st.session_state.get("sim_started"):
         st.session_state["sim_started"] = True
 
 
-st.markdown('<div class="mia-kicker">Consola operare incidente</div>', unsafe_allow_html=True)
+if VIEW == VIEW_HISTORY:
+    _render_history_page()
+    st.stop()
+
 st.title("Major Incident Agent")
 st.caption(
     f"Flux agentic orchestrat de LangGraph Server ({LANGGRAPH_URL}). "
@@ -592,23 +862,21 @@ elif step == 1:
             selected = by_id[chosen]
             code, label = statuses[chosen]
 
-            with st.container(border=True):
-                st.markdown(
-                    f'<div class="mia-cluster-title">'
-                    f'<span class="id mia-mono">{selected.cluster_id}</span>'
-                    f'<span class="service">{selected.service_guess}</span>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-                st.markdown(
-                    f'<div class="mia-meta">'
-                    f'{selected.ticket_count} tichete &nbsp;|&nbsp; '
-                    f'similaritate {selected.centroid_similarity:.2f} &nbsp;|&nbsp; '
-                    f'{selected.window_start:%H:%M:%S}\u2013{selected.window_end:%H:%M:%S} '
-                    f'&nbsp;|&nbsp; stare: <strong>{label}</strong>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
+            st.markdown(
+                f'<div class="mia-card">'
+                f'<div class="mia-cluster-title">'
+                f'<span class="id mia-mono">{escape(selected.cluster_id)}</span>'
+                f'<span class="service">{escape(selected.service_guess)}</span>'
+                f'</div>'
+                f'<div class="mia-meta">'
+                f'{selected.ticket_count} tichete &nbsp;|&nbsp; '
+                f'similaritate {selected.centroid_similarity:.2f} &nbsp;|&nbsp; '
+                f'{selected.window_start:%H:%M:%S}\u2013{selected.window_end:%H:%M:%S} '
+                f'&nbsp;|&nbsp; stare: <strong>{escape(label)}</strong>'
+                f'</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
             tickets_by_key = {t["key"]: t for t in st.session_state["detection_result"]["tickets"]}
             with st.expander(f"Tichetele clusterului ({selected.ticket_count})"):
@@ -639,6 +907,7 @@ elif step == 1:
                             # inregistrat inainte de rulare: clusterul apare "in evaluare" chiar daca runul esueaza
                             st.session_state["cluster_threads"][selected.cluster_id] = thread["thread_id"]
                             st.session_state["decision_reason"] = ""
+                            st.session_state["declare_severity"] = "SEV2"
                             _run_graph(
                                 input_payload={
                                     "cluster": selected.model_dump(mode="json"),
@@ -729,7 +998,10 @@ elif step == 3:
 
     if user_approved is None and not pending_nodes:
         # Graful s-a incheiat fara sa ajunga la HITL (assessment: nu e candidat)
-        st.info("Evaluarea nu a propus Major Incident - graful s-a încheiat fără aprobare umană.")
+        st.info(
+            "Evaluarea nu a propus Major Incident - graful s-a încheiat fără aprobare umană. "
+            "Clusterul a fost salvat în istoric ca „Nepropus de AI”."
+        )
         col_a, col_b = st.columns([1, 5])
         with col_a:
             if st.button("Back"):
@@ -741,28 +1013,62 @@ elif step == 3:
                 st.rerun()
 
     elif user_approved is None:
-        reason = st.text_input(
-            "Motiv (recomandat la respingere)",
-            key="decision_reason",
-            placeholder="ex.: un singur utilizator afectat, nu e incident major",
-        )
-        col_a, col_b = st.columns(2)
-        with col_a:
-            if st.button("Aprobă Major Incident"):
-                with st.spinner("Se transmite decizia către LangGraph (resume)..."):
-                    _run_graph(resume={"approved": True, "decided_by": DECIDED_BY})
-                st.rerun()
-        with col_b:
-            if st.button("Respinge"):
-                with st.spinner("Se transmite respingerea către LangGraph (resume)..."):
-                    _run_graph(resume={
-                        "approved": False,
-                        "reason": reason.strip(),
-                        "decided_by": DECIDED_BY,
-                    })
-                st.rerun()
+        ai_candidate = (assessment or {}).get("is_major_incident_candidate", True)
+        if ai_candidate:
+            reason = st.text_input(
+                "Motiv (recomandat la respingere)",
+                key="decision_reason",
+                placeholder="ex.: un singur utilizator afectat, nu e incident major",
+            )
+            col_a, col_b = st.columns(2)
+            with col_a:
+                if st.button("Aprobă Major Incident"):
+                    with st.spinner("Se transmite decizia către LangGraph (resume)..."):
+                        _run_graph(resume={"approved": True, "decided_by": DECIDED_BY})
+                    st.rerun()
+            with col_b:
+                if st.button("Respinge"):
+                    with st.spinner("Se transmite respingerea către LangGraph (resume)..."):
+                        _run_graph(resume={
+                            "approved": False,
+                            "reason": reason.strip(),
+                            "decided_by": DECIDED_BY,
+                        })
+                    st.rerun()
+        else:
+            st.info(
+                "Assessment nu a propus incident major. Decizia îți aparține: confirmă că nu e incident "
+                "sau declară incident major."
+            )
+            reason = st.text_input(
+                "Motiv (recomandat dacă declari incidentul)",
+                key="decision_reason",
+                placeholder="ex.: impact confirmat de echipa locală",
+            )
+            severity = st.selectbox("Severitate (dacă declari incidentul)", ["SEV2", "SEV1"], key="declare_severity")
+            col_a, col_b = st.columns(2)
+            with col_a:
+                if st.button("Confirm: nu e incident"):
+                    with st.spinner("Se transmite decizia către LangGraph (resume)..."):
+                        _run_graph(resume={
+                            "approved": False,
+                            "reason": reason.strip(),
+                            "decided_by": DECIDED_BY,
+                        })
+                    st.rerun()
+            with col_b:
+                if st.button("Declar incident major"):
+                    with st.spinner("Se transmite decizia către LangGraph (resume)..."):
+                        _run_graph(resume={
+                            "approved": True,
+                            "severity": severity,
+                            "reason": reason.strip(),
+                            "decided_by": DECIDED_BY,
+                        })
+                    st.rerun()
     else:
-        status_label = "Declared" if user_approved else "Rejected"
+        ai_candidate = (assessment or {}).get("is_major_incident_candidate", True)
+        status_label = _decision_label(ai_candidate, user_approved)
         status_class = "declared" if user_approved else "rejected"
 
         st.markdown(
@@ -778,9 +1084,15 @@ elif step == 3:
                 st.session_state["wizard_step"] = 2
                 st.rerun()
         with col_b:
-            if st.button("Next: Comunicări"):
-                st.session_state["wizard_step"] = 4
-                st.rerun()
+            if user_approved:
+                if st.button("Next: Comunicări"):
+                    st.session_state["wizard_step"] = 4
+                    st.rerun()
+            else:
+                # nu s-a declarat incident: nu exista comunicari de aprobat, se merge direct la sumar
+                if st.button("Next: Sumar"):
+                    st.session_state["wizard_step"] = 5
+                    st.rerun()
 
 # ===========================================================================
 # PASUL 5 - Comunicări (HITL #2 via LangGraph interrupt)
@@ -900,9 +1212,15 @@ elif step == 5:
             )
 
         if user_approved is None:
-            st.markdown("**Decizie umană:** nu a fost necesară (nu e candidat Major Incident)")
+            pending = (
+                "nu a fost necesară (înregistrare mai veche, fără review)"
+                if final_status == "DISMISSED_BY_ASSESSMENT"
+                else "încă nu a fost luată"
+            )
+            st.markdown(f"**Decizie umană:** {pending}")
         else:
-            status_label = "Declared" if user_approved else "Rejected"
+            ai_candidate = (assessment or {}).get("is_major_incident_candidate", True)
+            status_label = _decision_label(ai_candidate, user_approved)
             status_class = "declared" if user_approved else "rejected"
             st.markdown(
                 f'**Decizie umană:** <span class="mia-status {status_class}">{status_label}</span>',
@@ -931,36 +1249,3 @@ elif step == 5:
             _mock_post("/mock/start")
             _reset_flow()
             st.rerun()
-
-# ---------------------------------------------------------------------------
-# Istoric decizii (din audit.db) - vizibil indiferent de pasul curent
-# ---------------------------------------------------------------------------
-st.divider()
-st.subheader("Istoric decizii")
-try:
-    history = audit_store.list_decisions(limit=50)
-except Exception as exc:  # noqa: BLE001
-    history = []
-    st.warning(f"Nu pot citi istoricul din audit.db: {exc}")
-
-if not history:
-    st.caption("Nicio decizie înregistrată încă.")
-else:
-    st.caption("Incidentele declarate apar după aprobarea comunicărilor; respingerile, imediat.")
-    st.dataframe(
-        [
-            {
-                "Incident": d["incident_id"],
-                "Rezultat": "Declarat" if d["outcome"] == "declared" else "Respins",
-                "Severitate": d["severity"],
-                "Serviciu": d["service"],
-                "Tichete": d["ticket_count"],
-                "Decis de": d["decided_by"],
-                "Data/ora (UTC)": _fmt_ts(d["decided_at"]),
-                "Motiv": d["reason"] or "",
-            }
-            for d in history
-        ],
-        hide_index=True,
-        use_container_width=True,
-    )

@@ -76,13 +76,89 @@ def test_assess_sets_unique_incident_id_and_audits():
     assert events[0]["rag_sources"] == ["RB-NET-001"]
 
 
-def test_not_candidate_is_only_audited_and_ends(monkeypatch):
-    monkeypatch.setattr(g, "assess_incident", lambda c, s: _assessment(candidate=False))
-    out = g.node_assess_incident({"cluster": _cluster(), "summaries": []})
+def _not_candidate_state(monkeypatch):
+    monkeypatch.setattr(
+        g, "assess_incident",
+        lambda c, s: _assessment(candidate=False, severity="SEV3", cluster_id=c.cluster_id),
+    )
+    state = {"cluster": _cluster(), "summaries": ["mailbox full", "need larger mailbox", "over quota"]}
+    state.update(g.node_assess_incident(state))
+    return state
 
-    assert audit_store.list_audit_events(incident_id=out["incident_id"])[0]["action"] == "assess_not_candidate"
-    assert g.route_after_assessment(out) == g.END
-    assert audit_store.list_decisions() == []
+
+def test_not_candidate_is_audited_and_goes_to_human_review(monkeypatch):
+    state = _not_candidate_state(monkeypatch)
+
+    assert audit_store.list_audit_events(incident_id=state["incident_id"])[0]["action"] == "assess_not_candidate"
+    # orice cluster evaluat trece prin om, chiar daca Assessment nu l-a propus
+    assert ("node_assess_incident", "node_human_review_incident") in g.create_workflow().edges
+
+
+def test_human_confirms_not_incident(isolated, monkeypatch):
+    state = _not_candidate_state(monkeypatch)
+    out = _review(state, monkeypatch, {"approved": False, "reason": "mailbox quota", "decided_by": "alice"})
+
+    assert out["major_incident"].status == "Rejected"
+    assert out["major_incident"].severity == "SEV3"
+    assert out["rejection_reason"] == "mailbox quota"
+    assert g.route_after_incident_review({**state, **out}) == "node_persist_and_learn"
+
+    events = audit_store.list_audit_events(incident_id=state["incident_id"])
+    review = next(e for e in events if e["action"] == "confirm_not_incident")
+    assert review["actor"] == "alice" and review["based_on"]["ai_candidate"] is False
+
+    state.update(out)
+    g.node_persist_and_learn(state)
+    (decision,) = audit_store.list_decisions()
+    assert decision["outcome"] == "rejected"
+    assert decision["assessment"]["is_major_incident_candidate"] is False  # din asta se deduce "AI nu a propus"
+    assert len(isolated) == 1 and isolated[0]["outcome"] == "rejected"  # decizie umana -> memorie
+
+
+def test_human_declares_incident_that_ai_did_not_propose(monkeypatch):
+    state = _not_candidate_state(monkeypatch)
+    out = _review(state, monkeypatch, {"approved": True, "severity": "SEV1", "reason": "seen on site", "decided_by": "bob"})
+
+    incident = out["major_incident"]
+    assert incident.status == "Declared" and incident.severity == "SEV1"
+    assert incident.declared_by == "bob" and incident.declared_at is not None
+    assert g.route_after_incident_review({**state, **out}) == "node_generate_communications"
+
+    actions = [e["action"] for e in audit_store.list_audit_events(incident_id=state["incident_id"])]
+    assert "declare_major_incident" in actions
+
+
+@pytest.mark.parametrize("requested", [None, "", "SEV3", "bogus"])
+def test_declare_without_valid_severity_defaults_to_sev2(monkeypatch, requested):
+    state = _not_candidate_state(monkeypatch)
+    out = _review(state, monkeypatch, {"approved": True, "severity": requested})
+    assert out["major_incident"].severity == "SEV2"
+
+
+def test_requested_severity_is_ignored_when_ai_proposed_incident(monkeypatch):
+    state = _assessed_state()  # AI a propus SEV2
+    out = _review(state, monkeypatch, {"approved": True, "severity": "SEV1"})
+    assert out["major_incident"].severity == "SEV2"
+
+
+def test_dismissed_cluster_is_saved_in_history_but_not_in_memory(isolated, monkeypatch):
+    """Realitate: un cluster respins de Assessment trebuie sa apara in istoric; memoria ramane doar pentru decizii umane."""
+    monkeypatch.setattr(g, "assess_incident", lambda c, s: _assessment(candidate=False, severity="SEV3"))
+    state = {"cluster": _cluster(), "summaries": ["mailbox full", "need larger mailbox", "over quota"]}
+    state.update(g.node_assess_incident(state))
+
+    out = g.node_persist_and_learn(state)
+
+    assert out == {"decision_saved": True, "final_status": "DISMISSED_BY_ASSESSMENT"}
+    (decision,) = audit_store.list_decisions()
+    assert decision["outcome"] == "dismissed"
+    assert decision["decided_by"] == "assessment_agent"
+    assert decision["severity"] == "SEV3"
+    assert decision["incident_id"] == state["incident_id"]
+    assert decision["ticket_count"] == 3
+    assert decision["communications"] is None
+    assert decision["reason"].startswith("Switch down")  # reasoning-ul AI, scurtat
+    assert isolated == []  # nimic in memoria Chroma
 
 
 # ---------- review ----------
