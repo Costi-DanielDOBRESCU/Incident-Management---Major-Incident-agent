@@ -33,7 +33,12 @@ from app.detection.unclustered import find_unclustered
 from app.execution import audit_store, ticket_reviews
 from app.ingestion import ticket_store
 
-st.set_page_config(page_title="Major Incident Agent", layout="wide")
+st.set_page_config(
+    page_title="Major Incident Agent - ITSM Command Center",
+    page_icon=None,
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 settings = get_settings()
 
@@ -43,13 +48,33 @@ MOCK_URL = f"http://127.0.0.1:{settings.mock_jira_port}"
 
 ticket_store.init_db()
 
-# Operatorul care ia deciziile (trimis la resume si salvat in audit)
-DECIDED_BY = st.sidebar.text_input("Operator", value="demo_user").strip() or "demo_user"
+# Sidebar ITSM Command Center Header & Operator
+with st.sidebar:
+    st.markdown(
+        '<div class="sidebar-branding">'
+        '<div class="sidebar-branding-title">MIA Command Center</div>'
+        '<div class="sidebar-branding-sub">IT Service Management Agent</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
-VIEW_FLOW = "Flux incident"
-VIEW_HISTORY = "Istoric incidente"
-st.sidebar.divider()
-VIEW = st.sidebar.radio("Navigare", [VIEW_FLOW, VIEW_HISTORY], key="nav_view")
+    DECIDED_BY = st.sidebar.text_input("Operator activ", value="demo_user").strip() or "demo_user"
+
+    VIEW_FLOW = "Flux incident"
+    VIEW_HISTORY = "Istoric incidente"
+    st.sidebar.divider()
+    VIEW = st.sidebar.radio("Navigare", [VIEW_FLOW, VIEW_HISTORY], key="nav_view")
+
+    st.sidebar.divider()
+    st.markdown(
+        '<div style="font-size: 0.78rem; color: #94A3B8; line-height: 1.5;">'
+        '<strong>Server LangGraph:</strong><br/>'
+        f'<code>{LANGGRAPH_URL}</code><br/><br/>'
+        '<strong>Graf activ:</strong><br/>'
+        f'<code>{GRAPH_NAME}</code>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +145,7 @@ def _cluster_status(thread_id: str | None) -> tuple[str, str]:
 
 
 # ---------------------------------------------------------------------------
-# Stil vizual (Console CSS)
+# Stil vizual (Console CSS - Professional ITSM Office Theme)
 # ---------------------------------------------------------------------------
 st.markdown(
     """
@@ -128,130 +153,253 @@ st.markdown(
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
     html, body, [class*="css"] {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: #0F172A;
     }
 
     :root {
-        --mia-bg: #F5F6F8;
-        --mia-surface: #FFFFFF;
-        --mia-border: #DBDFE5;
-        --mia-text: #1B2430;
-        --mia-text-muted: #667085;
-        --mia-accent: #2E5AAC;
-        --mia-accent-soft: #E4EAF5;
-        --mia-sev1: #C0392B;
-        --mia-sev2: #C0791E;
-        --mia-sev3: #667085;
-        --mia-success: #2E7D46;
+        --itsm-primary: #1E3A8A;
+        --itsm-primary-light: #3B82F6;
+        --itsm-bg: #F8FAFC;
+        --itsm-surface: #FFFFFF;
+        --itsm-border: #E2E8F0;
+        --itsm-border-hover: #CBD5E1;
+        --itsm-text-main: #0F172A;
+        --itsm-text-muted: #64748B;
+        --itsm-sev1-bg: #FEE2E2;
+        --itsm-sev1-text: #991B1B;
+        --itsm-sev1-border: #FCA5A5;
+        --itsm-sev2-bg: #FEF3C7;
+        --itsm-sev2-text: #92400E;
+        --itsm-sev2-border: #FCD34D;
+        --itsm-sev3-bg: #DBEAFE;
+        --itsm-sev3-text: #1E40AF;
+        --itsm-sev3-border: #93C5FD;
+        --itsm-success-bg: #DCFCE7;
+        --itsm-success-text: #166534;
+        --itsm-success-border: #86EFAC;
     }
 
-    [data-testid="stAppViewContainer"] { background-color: var(--mia-bg); }
-    [data-testid="stHeader"] { background-color: transparent; }
+    [data-testid="stAppViewContainer"] { background-color: var(--itsm-bg); }
+    [data-testid="stHeader"] { background-color: rgba(248, 250, 252, 0.85); backdrop-filter: blur(8px); }
     #MainMenu, footer { visibility: hidden; }
 
-    h1, h2, h3 { color: var(--mia-text); font-weight: 600; letter-spacing: -0.01em; }
+    h1, h2, h3 { color: var(--itsm-text-main); font-weight: 600; letter-spacing: -0.01em; }
 
     [data-testid="stCaptionContainer"] p,
-    [data-testid="stCaptionContainer"] { color: var(--mia-text-muted); }
+    [data-testid="stCaptionContainer"] { color: var(--itsm-text-muted); }
 
+    /* Sidebar Styling */
+    [data-testid="stSidebar"] {
+        background-color: #0F172A !important;
+        border-right: 1px solid #1E293B !important;
+    }
+    [data-testid="stSidebar"] * { color: #E2E8F0 !important; }
+    [data-testid="stSidebar"] .stRadio label p { color: #E2E8F0 !important; font-weight: 500; }
+    [data-testid="stSidebar"] input {
+        background-color: #1E293B !important;
+        color: #FFFFFF !important;
+        border: 1px solid #334155 !important;
+        border-radius: 4px !important;
+    }
+
+    .sidebar-branding {
+        padding: 0.25rem 0 0.85rem 0;
+        border-bottom: 1px solid #1E293B;
+        margin-bottom: 1rem;
+    }
+    .sidebar-branding-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #F8FAFC !important;
+        letter-spacing: -0.01em;
+    }
+    .sidebar-branding-sub {
+        font-size: 0.72rem;
+        color: #94A3B8 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    /* Container Blocks & Cards */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        border: 1px solid var(--mia-border) !important;
-        border-radius: 3px !important;
-        box-shadow: none !important;
-        background-color: var(--mia-surface);
+        border: 1px solid var(--itsm-border) !important;
+        border-radius: 6px !important;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04) !important;
+        background-color: var(--itsm-surface) !important;
     }
 
+    /* Buttons */
     .stButton button {
-        border-radius: 3px;
-        border: 1px solid var(--mia-border);
-        font-weight: 500;
-        color: var(--mia-text);
+        border-radius: 4px !important;
+        border: 1px solid #CBD5E1 !important;
+        background-color: #FFFFFF !important;
+        font-weight: 600 !important;
+        font-size: 0.875rem !important;
+        color: #1E293B !important;
+        padding: 0.4rem 1rem !important;
+        transition: all 0.15s ease-in-out !important;
     }
-    .stButton button:hover { border-color: var(--mia-accent); color: var(--mia-accent); }
+    .stButton button:hover {
+        border-color: #2563EB !important;
+        color: #2563EB !important;
+        background-color: #F0F9FF !important;
+        box-shadow: 0 2px 4px rgba(37, 99, 235, 0.1) !important;
+    }
+    .stButton button[kind="primary"], button[data-testid="baseButton-primary"] {
+        background-color: #2563EB !important;
+        color: #FFFFFF !important;
+        border: 1px solid #1D4ED8 !important;
+    }
+    .stButton button[kind="primary"]:hover {
+        background-color: #1D4ED8 !important;
+        color: #FFFFFF !important;
+    }
 
-    [data-testid="stDataFrame"] { border: 1px solid var(--mia-border); border-radius: 3px; }
+    /* Dataframes & Metrics */
+    [data-testid="stDataFrame"] { border: 1px solid var(--itsm-border) !important; border-radius: 6px !important; }
+    [data-testid="stMetric"] {
+        background-color: var(--itsm-surface) !important;
+        border: 1px solid var(--itsm-border) !important;
+        border-radius: 6px !important;
+        padding: 0.75rem 1rem !important;
+    }
+    [data-testid="stMetricLabel"] p {
+        font-size: 0.78rem !important;
+        font-weight: 600 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.04em !important;
+        color: var(--itsm-text-muted) !important;
+    }
+    [data-testid="stMetricValue"] div {
+        font-size: 1.5rem !important;
+        font-weight: 700 !important;
+        color: var(--itsm-text-main) !important;
+    }
 
-    .mia-kicker { font-size: 0.85rem; color: var(--mia-text-muted); margin-bottom: 0.15rem; }
-    .mia-meta { font-size: 0.85rem; color: var(--mia-text-muted); line-height: 1.6; }
+    /* ITSM Banner Header */
+    .itsm-header-banner {
+        background: linear-gradient(90deg, #0F172A 0%, #1E3A8A 100%);
+        color: #FFFFFF;
+        padding: 1.1rem 1.4rem;
+        border-radius: 6px;
+        margin-bottom: 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+    }
+    .itsm-header-title { font-size: 1.35rem; font-weight: 700; margin: 0; color: #FFFFFF; }
+    .itsm-header-sub { font-size: 0.82rem; color: #94A3B8; margin-top: 0.15rem; }
+    .itsm-status-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background-color: rgba(255, 255, 255, 0.12);
+        color: #F8FAFC;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .itsm-status-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background-color: #22C55E; margin-right: 0.45rem; display: inline-block;
+    }
+
+    .mia-meta { font-size: 0.85rem; color: var(--itsm-text-muted); line-height: 1.6; }
     .mia-mono {
-        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
-        font-size: 0.82rem; color: var(--mia-text);
+        font-family: 'ui-monospace', SFMono-Regular, Consolas, monospace;
+        font-size: 0.82rem; color: #0F172A;
+        background: #F1F5F9; padding: 0.15rem 0.4rem; border-radius: 4px; border: 1px solid #E2E8F0;
     }
     .mia-card {
-        background-color: var(--mia-surface);
-        border: 1px solid var(--mia-border);
-        border-radius: 3px;
-        padding: 1rem 1.25rem;          /* acelasi spatiu sus si jos fata de text */
-        margin-bottom: 0.75rem;
+        background-color: var(--itsm-surface);
+        border: 1px solid var(--itsm-border);
+        border-radius: 6px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 0.85rem;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
     .mia-card .mia-cluster-title { margin: 0 0 0.4rem 0; line-height: 1.4; }
     .mia-card .mia-meta { margin: 0; line-height: 1.4; }
 
-    /* chip-urile din filtre (multiselect) in culoarea aplicatiei, chiar daca tema nu e preluata */
-    span[data-baseweb="tag"] { background-color: var(--mia-accent) !important; color: #FFFFFF !important; }
+    span[data-baseweb="tag"] { background-color: var(--itsm-primary) !important; color: #FFFFFF !important; border-radius: 4px !important; }
 
     .mia-cluster-title { display: flex; align-items: baseline; gap: 0.6rem; font-size: 1rem; }
     .mia-cluster-title .id { font-weight: 600; }
-    .mia-cluster-title .service { color: var(--mia-text-muted); }
+    .mia-cluster-title .service { color: var(--itsm-text-muted); }
 
     .mia-badge {
-        display: inline-block; padding: 0.12rem 0.5rem; border-radius: 3px;
-        font-size: 0.76rem; font-weight: 600; color: #FFFFFF;
+        display: inline-block; padding: 0.18rem 0.55rem; border-radius: 4px;
+        font-size: 0.74rem; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase;
     }
-    .mia-badge.sev1 { background-color: var(--mia-sev1); }
-    .mia-badge.sev2 { background-color: var(--mia-sev2); }
-    .mia-badge.sev3 { background-color: var(--mia-sev3); }
-    .mia-badge.unknown { background-color: #9AA1AC; }
+    .mia-badge.sev1 { background-color: var(--itsm-sev1-bg); color: var(--itsm-sev1-text); border: 1px solid var(--itsm-sev1-border); }
+    .mia-badge.sev2 { background-color: var(--itsm-sev2-bg); color: var(--itsm-sev2-text); border: 1px solid var(--itsm-sev2-border); }
+    .mia-badge.sev3 { background-color: var(--itsm-sev3-bg); color: var(--itsm-sev3-text); border: 1px solid var(--itsm-sev3-border); }
+    .mia-badge.unknown { background-color: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; }
 
     .mia-status {
-        display: inline-block; padding: 0.12rem 0.5rem; border-radius: 3px;
-        font-size: 0.76rem; font-weight: 500;
+        display: inline-block; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;
     }
-    .mia-status.declared { background-color: rgba(46,125,70,0.12); color: var(--mia-success); }
-    .mia-status.rejected { background-color: rgba(102,112,133,0.14); color: var(--mia-text-muted); }
-    .mia-status.approved { background-color: rgba(46,125,70,0.12); color: var(--mia-success); }
+    .mia-status.declared, .mia-status.approved {
+        background-color: var(--itsm-success-bg); color: var(--itsm-success-text); border: 1px solid var(--itsm-success-border);
+    }
+    .mia-status.rejected { background-color: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; }
 
-    .mia-comm-label { font-size: 0.78rem; font-weight: 600; color: var(--mia-text-muted); margin-bottom: 0.2rem; }
+    .mia-comm-label {
+        font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+        color: var(--itsm-text-muted); margin-bottom: 0.3rem;
+    }
 
     .mia-node-box {
-        background-color: var(--mia-accent-soft);
-        border: 1px solid var(--mia-accent);
-        border-radius: 3px;
-        padding: 0.7rem 0.9rem;
-        font-size: 0.88rem;
-        color: var(--mia-text);
-        margin-bottom: 0.9rem;
+        background-color: #F0F9FF;
+        border: 1px solid #BAE6FD;
+        border-left: 4px solid #0284C7;
+        border-radius: 4px;
+        padding: 0.85rem 1.1rem;
+        font-size: 0.875rem;
+        color: var(--itsm-text-main);
+        margin-bottom: 1.1rem;
     }
     .mia-node-box .node-label {
         font-size: 0.75rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--mia-accent);
-        margin-bottom: 0.2rem;
+        letter-spacing: 0.05em;
+        color: #0369A1;
+        margin-bottom: 0.25rem;
     }
 
-    /* Stepper header */
-    .mia-stepper { display: flex; align-items: flex-start; margin: 1.2rem 0 1.6rem 0; }
+    /* Stepper Header Bar */
+    .mia-stepper {
+        display: flex; align-items: flex-start; margin: 1.1rem 0 1.5rem 0;
+        background: #FFFFFF; padding: 0.9rem 0.5rem;
+        border: 1px solid var(--itsm-border); border-radius: 6px;
+    }
     .mia-step { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; }
     .mia-step:not(:last-child)::after {
         content: ""; position: absolute; top: 14px; left: 50%; width: 100%; height: 2px;
-        background-color: var(--mia-border); z-index: 0;
+        background-color: #E2E8F0; z-index: 0;
     }
-    .mia-step.done:not(:last-child)::after { background-color: var(--mia-accent); }
+    .mia-step.done:not(:last-child)::after { background-color: #2563EB; }
     .mia-step-circle {
         width: 28px; height: 28px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-size: 0.8rem; font-weight: 600; z-index: 1;
-        background-color: var(--mia-surface); border: 2px solid var(--mia-border);
-        color: var(--mia-text-muted);
+        font-size: 0.78rem; font-weight: 700; z-index: 1;
+        background-color: #FFFFFF; border: 2px solid #CBD5E1; color: #64748B;
+        transition: all 0.2s ease;
     }
-    .mia-step.done .mia-step-circle { background-color: var(--mia-accent); border-color: var(--mia-accent); color: #FFFFFF; }
-    .mia-step.current .mia-step-circle { border-color: var(--mia-accent); color: var(--mia-accent); }
+    .mia-step.done .mia-step-circle { background-color: #2563EB; border-color: #2563EB; color: #FFFFFF; }
+    .mia-step.current .mia-step-circle {
+        border-color: #2563EB; background-color: #EFF6FF; color: #1D4ED8;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+    }
     .mia-step-label {
-        font-size: 0.74rem; color: var(--mia-text-muted); margin-top: 0.35rem; text-align: center; max-width: 110px;
+        font-size: 0.74rem; color: #64748B; margin-top: 0.35rem; text-align: center; max-width: 110px; font-weight: 500;
     }
-    .mia-step.current .mia-step-label { color: var(--mia-text); font-weight: 600; }
+    .mia-step.current .mia-step-label { color: #0F172A; font-weight: 700; }
+    .mia-step.done .mia-step-label { color: #334155; font-weight: 600; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -266,7 +414,7 @@ def _severity_badge(severity: str) -> str:
 def _node_box(node_name: str, description: str) -> None:
     st.markdown(
         f'<div class="mia-node-box">'
-        f'<div class="node-label">Node: {node_name}</div>'
+        f'<div class="node-label">Nod Pipeline: {escape(node_name)}</div>'
         f'{description}'
         f'</div>',
         unsafe_allow_html=True,
@@ -351,6 +499,7 @@ STEPS = [
     "Sumar",
 ]
 
+
 def _init_state() -> None:
     defaults = {
         "wizard_step": 0,
@@ -387,7 +536,7 @@ def _render_stepper_header(current: int) -> None:
     cells = []
     for i, label in enumerate(STEPS):
         state = "done" if i < current else ("current" if i == current else "")
-        marker = "\u2713" if i < current else str(i + 1)
+        marker = "OK" if i < current else str(i + 1)
         cells.append(
             f'<div class="mia-step {state}">'
             f'<div class="mia-step-circle">{marker}</div>'
@@ -456,13 +605,13 @@ def _render_unclustered(detection: dict, tickets_by_key: dict) -> None:
         "(informativ, nu modifică clusterele)."
     )
 
-    markers = {"unreviewed": "○", "handled": "✓", "watch": "◔"}
+    status_prefix = {"unreviewed": "[Nerevizuit]", "handled": "[Tratat]", "watch": "[De urmărit]"}
     status_codes = list(ticket_reviews.STATUS_LABELS)
     for item, status in zip(items, statuses):
         review = reviews.get((item["key"], item["created"]))
         sim = item["nearest_similarity"]
         sim_txt = f" · similar {sim:.2f} cu {item['nearest_cluster_id']}" if sim is not None else ""
-        label = f"{markers[status]} {item['key']} · {item['service']} · {item['summary'][:70]}{sim_txt}"
+        label = f"{status_prefix.get(status, '')} {item['key']} · {item['service']} · {item['summary'][:70]}{sim_txt}"
         with st.expander(label):
             issue = tickets_by_key.get(item["key"])
             if issue:
@@ -508,7 +657,7 @@ def _render_incident_detail(d: dict) -> None:
     st.divider()
     st.subheader(d["incident_id"])
     st.markdown(
-        f'<div class="mia-meta">'
+        f'<div class="mia-meta" style="margin-bottom: 0.8rem;">'
         f'<span class="mia-status {css}">{OUTCOME_LABELS[key]}</span>'
         f'&nbsp;&nbsp;{_severity_badge(d["severity"] or "N/A")}'
         f'&nbsp;&nbsp;{escape(str(d["service"] or "N/A"))} &nbsp;|&nbsp; {d["ticket_count"] or 0} tichete'
@@ -543,10 +692,12 @@ def _render_incident_detail(d: dict) -> None:
             st.info("Nu există o evaluare AI salvată.")
         else:
             st.markdown(
+                f'<div class="mia-card">'
                 f'<div class="mia-meta">{_severity_badge(a["estimated_severity"])}'
                 f'&nbsp;&nbsp;Candidat Major Incident: <strong>{"da" if a["is_major_incident_candidate"] else "nu"}</strong>'
                 f'&nbsp;&nbsp;Confidence: <strong>{a["confidence"]:.2f}</strong>'
-                f'&nbsp;&nbsp;Acțiune recomandată: <span class="mia-mono">{a["recommended_action"]}</span></div>',
+                f'&nbsp;&nbsp;Acțiune recomandată: <span class="mia-mono">{a["recommended_action"]}</span></div>'
+                f'</div>',
                 unsafe_allow_html=True,
             )
             st.markdown("**Raționament**")
@@ -627,7 +778,15 @@ def _render_incident_detail(d: dict) -> None:
 
 def _render_history_page() -> None:
     """Pagina 'Istoric incidente': toate clusterele evaluate, cu filtre si analiza detaliata la selectie."""
-    st.title("Istoric incidente")
+    st.markdown(
+        '<div class="itsm-header-banner">'
+        '<div>'
+        '<div class="itsm-header-title">Istoric Incidente &amp; Audit Operational</div>'
+        '<div class="itsm-header-sub">Centralizator decizii umane, evaluări AI și analiză retroactivă ITSM</div>'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
     st.caption(
         "Toate clusterele evaluate: decizii umane și clustere nepropuse de AI. "
         "Selectează un rând din tabel pentru analiza detaliată."
@@ -645,10 +804,10 @@ def _render_history_page() -> None:
     counts = Counter(_outcome_key(d) for d in decisions)
     declared = counts.get("declared", 0) + counts.get("declared_override", 0)
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total", len(decisions))
-    m2.metric("Declarate", declared)
-    m3.metric("Nu sunt incidente", len(decisions) - declared)
-    m4.metric("Operator ≠ propunerea AI", counts.get("declared_override", 0) + counts.get("rejected", 0))
+    m1.metric("Total Incidente Evaluate", len(decisions))
+    m2.metric("Declarate Major Incident", declared)
+    m3.metric("Fără Impact Major", len(decisions) - declared)
+    m4.metric("Divergențe AI / Operator", counts.get("declared_override", 0) + counts.get("rejected", 0))
 
     f1, f2, f3 = st.columns(3)
     outcomes = f1.multiselect(
@@ -671,7 +830,6 @@ def _render_history_page() -> None:
         st.info("Niciun rezultat pentru filtrele alese.")
         return
 
-    # cheia depinde de filtre: selectia se reseteaza cand se schimba lista afisata
     table_key = "history_table_" + "|".join([",".join(sorted(outcomes)), ",".join(services), ",".join(severities)])
     event = st.dataframe(
         [
@@ -756,13 +914,22 @@ if VIEW == VIEW_HISTORY:
     _render_history_page()
     st.stop()
 
-st.title("Major Incident Agent")
-st.caption(
-    f"Flux agentic orchestrat de LangGraph Server ({LANGGRAPH_URL}). "
-    "Urmareste executia live in LangGraph Studio."
+# ITSM Command Center Main Header
+st.markdown(
+    '<div class="itsm-header-banner">'
+    '<div>'
+    '<div class="itsm-header-title">Major Incident Management Platform</div>'
+    '<div class="itsm-header-sub">Orchestrator Agentic LangGraph &bull; Dispecerat ITSM Operations</div>'
+    '</div>'
+    '<div class="itsm-status-pill">'
+    '<span class="itsm-status-dot"></span> LangGraph Sync Online'
+    '</div>'
+    '</div>',
+    unsafe_allow_html=True,
 )
+
 if st.session_state["thread_id"]:
-    st.caption(f"Thread curent: `{st.session_state['thread_id']}`")
+    st.caption(f"Thread LangGraph curent: `{st.session_state['thread_id']}`")
 
 _render_stepper_header(st.session_state["wizard_step"])
 
@@ -776,19 +943,16 @@ if step == 0:
     _node_box(
         "Ticket Intake (live)",
         "Tichetele sosesc în timp real prin API-ul Jira, sunt preluate de ingestor și salvate "
-        "într-un tabel local. Fluxul pornește automat la intrarea în aplicație; tu nu selectezi nimic.",
+        "într-un tabel local.",
     )
 
     _live_tickets_view()
 
-    # Butonul NU poate fi dezactivat pe baza numarului de tichete: tabelul se reimprospateaza
-    # intr-un fragment, iar restul paginii nu se reexecuta, deci starea "disabled" ar ramane veche.
-    if st.button("Next: Detecție & clustering"):
+    if st.button("Next: Detecție & clustering", type="primary"):
         snapshot = ticket_store.list_raw_issues()
         if not snapshot:
             st.warning("Încă nu a sosit niciun tichet.")
         else:
-            # Snapshot cronologic, in formatul Jira folosit mai departe
             st.session_state["stream_tickets"] = snapshot
             st.session_state["stream_done"] = True
             st.session_state["detection_result"] = None
@@ -812,7 +976,7 @@ elif step == 1:
     tickets = st.session_state["stream_tickets"]
 
     if st.session_state["detection_result"] is None:
-        if st.button("Rulează detecția"):
+        if st.button("Rulează detecția", type="primary"):
             with st.spinner("Se calculează embeddings + similaritate..."):
                 raw_clusters, similarity_matrix = detect_clusters_with_matrix(tickets, embed=cached_embedding)
                 clusters = [
@@ -848,7 +1012,6 @@ elif step == 1:
 
             current = st.session_state["selected_cluster_id"]
             if current not in by_id:
-                # primul cluster neevaluat, altfel primul din lista
                 current = next((cid for cid in ids if statuses[cid][0] == "new"), ids[0])
             chosen = st.radio(
                 "Clustere detectate",
@@ -896,15 +1059,14 @@ elif step == 1:
                     st.rerun()
             with col_b:
                 if code == "new":
-                    if st.button("Next: Evaluare AI (Pornire Graf LangGraph)"):
+                    if st.button("Next: Evaluare AI (Pornire Graf LangGraph)", type="primary"):
                         detection = st.session_state["detection_result"]
                         indices = detection["indices_by_cluster"][selected.cluster_id]
                         summaries = [detection["tickets"][i]["fields"]["summary"] for i in indices]
 
-                        with st.spinner("Se creează thread-ul și rulează node_assess_incident pe server..."):
+                        with st.spinner("Se creează thread-ul și rulează node_assessment_incident pe server..."):
                             thread = client.threads.create()
                             st.session_state["thread_id"] = thread["thread_id"]
-                            # inregistrat inainte de rulare: clusterul apare "in evaluare" chiar daca runul esueaza
                             st.session_state["cluster_threads"][selected.cluster_id] = thread["thread_id"]
                             st.session_state["decision_reason"] = ""
                             st.session_state["declare_severity"] = "SEV2"
@@ -918,7 +1080,7 @@ elif step == 1:
                         st.rerun()
                 else:
                     button_label = "Vezi rezultatul" if code in DONE_CODES else "Continuă evaluarea"
-                    if st.button(button_label):
+                    if st.button(button_label, type="primary"):
                         st.session_state["thread_id"] = threads[selected.cluster_id]
                         st.session_state["wizard_step"] = OPEN_STEP[code]
                         st.rerun()
@@ -944,19 +1106,20 @@ elif step == 2:
 
     if assessment:
         st.markdown(
-            f'<div class="mia-meta">'
-            f'{_severity_badge(assessment["estimated_severity"])}'
-            f'&nbsp;&nbsp;Candidat Major Incident: <strong>'
-            f'{"da" if assessment["is_major_incident_candidate"] else "nu"}</strong>'
-            f'&nbsp;&nbsp;Confidence: <strong>{assessment["confidence"]:.2f}</strong>'
-            f'&nbsp;&nbsp;Acțiune recomandată: '
-            f'<span class="mia-mono">{assessment["recommended_action"]}</span>'
+            f'<div class="mia-card">'
+            f'<div class="mia-meta" style="font-size: 0.92rem; line-height: 1.8;">'
+            f'Severitate estimată: {_severity_badge(assessment["estimated_severity"])}<br/>'
+            f'Candidat Incident Major: <strong>{"DA" if assessment["is_major_incident_candidate"] else "NU"}</strong><br/>'
+            f'Nivel de încredere (Confidence): <strong>{assessment["confidence"]:.2f}</strong><br/>'
+            f'Acțiune recomandată: <span class="mia-mono">{assessment["recommended_action"]}</span>'
+            f'</div>'
             f'</div>',
             unsafe_allow_html=True,
         )
-        with st.expander("Raționament și surse RAG"):
+        with st.expander("Raționament complet și surse RAG"):
+            st.markdown("**Raționament AI:**")
             st.write(assessment["reasoning"])
-            st.caption(f"Surse: {', '.join(assessment['rag_sources'])}")
+            st.caption(f"Surse RAG interogate: {', '.join(assessment['rag_sources'])}")
 
         col_a, col_b = st.columns([1, 5])
         with col_a:
@@ -964,7 +1127,7 @@ elif step == 2:
                 st.session_state["wizard_step"] = 1
                 st.rerun()
         with col_b:
-            if st.button("Next: Aprobare umană"):
+            if st.button("Next: Aprobare umană", type="primary"):
                 st.session_state["wizard_step"] = 3
                 st.rerun()
     else:
@@ -991,13 +1154,14 @@ elif step == 3:
 
     if assessment:
         st.markdown(
+            f'<div class="mia-card">'
             f'<div class="mia-meta">Recomandare AI: {_severity_badge(assessment["estimated_severity"])} '
-            f'&nbsp;&nbsp;acțiune: <span class="mia-mono">{assessment["recommended_action"]}</span></div>',
+            f'&nbsp;&nbsp;|&nbsp;&nbsp; Acțiune recomandată: <span class="mia-mono">{assessment["recommended_action"]}</span></div>'
+            f'</div>',
             unsafe_allow_html=True,
         )
 
     if user_approved is None and not pending_nodes:
-        # Graful s-a incheiat fara sa ajunga la HITL (assessment: nu e candidat)
         st.info(
             "Evaluarea nu a propus Major Incident - graful s-a încheiat fără aprobare umană. "
             "Clusterul a fost salvat în istoric ca „Nepropus de AI”."
@@ -1008,7 +1172,7 @@ elif step == 3:
                 st.session_state["wizard_step"] = 2
                 st.rerun()
         with col_b:
-            if st.button("Next: Sumar"):
+            if st.button("Next: Sumar", type="primary"):
                 st.session_state["wizard_step"] = 5
                 st.rerun()
 
@@ -1022,7 +1186,7 @@ elif step == 3:
             )
             col_a, col_b = st.columns(2)
             with col_a:
-                if st.button("Aprobă Major Incident"):
+                if st.button("Aprobă Major Incident", type="primary"):
                     with st.spinner("Se transmite decizia către LangGraph (resume)..."):
                         _run_graph(resume={"approved": True, "decided_by": DECIDED_BY})
                     st.rerun()
@@ -1057,7 +1221,7 @@ elif step == 3:
                         })
                     st.rerun()
             with col_b:
-                if st.button("Declar incident major"):
+                if st.button("Declar incident major", type="primary"):
                     with st.spinner("Se transmite decizia către LangGraph (resume)..."):
                         _run_graph(resume={
                             "approved": True,
@@ -1072,9 +1236,11 @@ elif step == 3:
         status_class = "declared" if user_approved else "rejected"
 
         st.markdown(
+            f'<div class="mia-card">'
             f'<div class="mia-meta">'
-            f'<span class="mia-status {status_class}">{status_label}</span>'
-            f'&nbsp;&nbsp;procesat și înregistrat în LangGraph State'
+            f'Decizie înregistrată: <span class="mia-status {status_class}">{status_label}</span>'
+            f'&nbsp;&nbsp;|&nbsp;&nbsp; Salvat în LangGraph State'
+            f'</div>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -1085,12 +1251,11 @@ elif step == 3:
                 st.rerun()
         with col_b:
             if user_approved:
-                if st.button("Next: Comunicări"):
+                if st.button("Next: Comunicări", type="primary"):
                     st.session_state["wizard_step"] = 4
                     st.rerun()
             else:
-                # nu s-a declarat incident: nu exista comunicari de aprobat, se merge direct la sumar
-                if st.button("Next: Sumar"):
+                if st.button("Next: Sumar", type="primary"):
                     st.session_state["wizard_step"] = 5
                     st.rerun()
 
@@ -1106,7 +1271,7 @@ elif step == 4:
 
     if user_approved is not True:
         st.info("Nu există comunicări de aprobat - incidentul nu a fost declarat.")
-        if st.button("Next: Sumar"):
+        if st.button("Next: Sumar", type="primary"):
             st.session_state["wizard_step"] = 5
             st.rerun()
     else:
@@ -1125,7 +1290,6 @@ elif step == 4:
             labels = {"end_users": "End users", "management": "Management"}
 
             if comm_approvals:
-                # Dupa aprobare: text final, doar pentru citire
                 for audience, draft in drafts.items():
                     with st.container(border=True):
                         st.markdown(f'<div class="mia-comm-label">{labels.get(audience, audience)}</div>', unsafe_allow_html=True)
@@ -1159,7 +1323,7 @@ elif step == 4:
                             edits[audience] = {"subject": subject.strip(), "body": body.strip()}
                             st.caption("Modificat față de textul generat.")
 
-                if st.button("Aprobă și Finalizează Comunicările", disabled=invalid):
+                if st.button("Aprobă și Finalizează Comunicările", disabled=invalid, type="primary"):
                     with st.spinner("Se confirmă aprobarea comunicatelor în LangGraph..."):
                         _run_graph(resume={
                             "approved_users": approvals.get("end_users", False),
@@ -1175,7 +1339,7 @@ elif step == 4:
                     st.session_state["wizard_step"] = 3
                     st.rerun()
             with col_b:
-                if st.button("Next: Sumar"):
+                if st.button("Next: Sumar", type="primary"):
                     st.session_state["wizard_step"] = 5
                     st.rerun()
         else:
@@ -1236,16 +1400,14 @@ elif step == 5:
     col_a, col_b = st.columns([1, 5])
     with col_a:
         if st.button("Înapoi la clustere"):
-            # clusterele detectate si thread-urile lor se pastreaza; se alege urmatorul neevaluat
             st.session_state["selected_cluster_id"] = None
             st.session_state["wizard_step"] = 1
             st.rerun()
     with col_b:
-        if st.button("Începe un incident nou"):
-            # Curatare completa DOAR dupa finalizarea procesului: mock + tabel local, apoi flux nou.
-            # audit.db (decizii + audit) NU se sterge.
+        if st.button("Începe un incident nou", type="primary"):
             _mock_post("/mock/reset")
             ticket_store.reset_db()
             _mock_post("/mock/start")
             _reset_flow()
             st.rerun()
+            
