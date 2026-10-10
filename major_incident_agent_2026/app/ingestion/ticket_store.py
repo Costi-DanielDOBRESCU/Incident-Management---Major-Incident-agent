@@ -102,6 +102,12 @@ def upsert_tickets(issues: list[dict[str, Any]], db_path: Optional[Path] = None)
             service = components[0]["name"] if components else "Unknown"
             priority = (f.get("priority") or {}).get("name", "")
 
+            # Aceeasi cheie Jira cu alt `created` = tichet NOU (cheile se repeta dupa un reset al mock-ului):
+            # il inlocuieste pe cel vechi, ca un tichet pastrat din runda anterioara sa nu-l blocheze.
+            prev = conn.execute("SELECT created FROM tickets WHERE key = ?", (issue["key"],)).fetchone()
+            if prev is not None and prev["created"] != created:
+                conn.execute("DELETE FROM tickets WHERE key = ?", (issue["key"],))
+
             cur = conn.execute(
                 """
                 INSERT OR IGNORE INTO tickets

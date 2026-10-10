@@ -4,6 +4,7 @@ Noduri, muchii conditionale si constructia grafului LangGraph.
 
 Persistare + invatare:
   - audit (SQLite) in noduri, DUPA interrupt() (nodul se reia la resume, deci inainte de interrupt s-ar dubla);
+  - node_execute_actions: Execution Layer (notificari simulate, status + link tichete), doar dupa aprobarea omului;
   - node_persist_and_learn: salveaza decizia umana in SQLite, apoi (best effort) in memoria Chroma.
 """
 
@@ -347,6 +348,32 @@ def _build_decision(state: IncidentState) -> dict:
     }
 
 
+def node_execute_actions(state: IncidentState) -> dict:
+    """
+    Nod 4b: Execution Layer (determinist). Ruleaza DOAR dupa ambele puncte HITL.
+    Executa doar ce a aprobat omul (vezi app/execution/tools.run_execution).
+    Erorile se auditeaza, dar nu opresc fluxul. NU modifica final_status (il citeste UI-ul).
+    """
+    decision = _build_decision(state)
+    incident_id = decision["incident_id"]
+    try:
+        from app.execution.tools import run_execution
+
+        result = run_execution(decision)
+        _audit(
+            "execution_layer",
+            "execute_actions",
+            incident_id=incident_id,
+            output_ref="executed" if result["executed"] else "skipped",
+            based_on=result,
+        )
+    except Exception as exc:  # noqa: BLE001
+        result = {"executed": False, "error": f"{type(exc).__name__}: {exc}"[:300]}
+        _audit("execution_layer", "execute_actions_failed", incident_id=incident_id, output_ref=result["error"])
+
+    return {"execution_result": result}
+
+
 def node_persist_and_learn(state: IncidentState) -> dict:
     """
     Nod 5: salveaza decizia umana (SQLite), apoi o adauga in memoria de incidente (Chroma).
@@ -404,6 +431,7 @@ def create_workflow():
     builder.add_node("node_human_review_incident", node_human_review_incident)
     builder.add_node("node_generate_communications", node_generate_communications)
     builder.add_node("node_human_review_communication", node_human_review_communication)
+    builder.add_node("node_execute_actions", node_execute_actions)
     builder.add_node("node_persist_and_learn", node_persist_and_learn)
 
     builder.set_entry_point("node_assess_incident")
@@ -419,7 +447,8 @@ def create_workflow():
         },
     )
     builder.add_edge("node_generate_communications", "node_human_review_communication")
-    builder.add_edge("node_human_review_communication", "node_persist_and_learn")
+    builder.add_edge("node_human_review_communication", "node_execute_actions")
+    builder.add_edge("node_execute_actions", "node_persist_and_learn")
     builder.add_edge("node_persist_and_learn", END)
 
     return builder

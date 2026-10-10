@@ -25,6 +25,7 @@ class IncidentState(TypedDict, total=False):
     - decided_by: cine a decis (din payload-ul de resume)
     - communication_drafts / user_approved_communications: comunicari si aprobari (HITL #2)
     - communication_edits: {audienta: {original_subject, original_body}} pentru comunicarile editate de om
+    - execution_result: rezumatul actiunilor executate de Execution Layer (node_execute_actions)
     - decision_saved: True dupa node_persist_and_learn
     - final_status: ex. COMPLETED_DECLARED, REJECTED_BY_USER
     """
@@ -39,5 +40,6 @@ class IncidentState(TypedDict, total=False):
     communication_drafts: Dict[str, CommunicationDraft]
     communication_edits: Dict[str, dict]
     user_approved_communications: Dict[str, bool]
+    execution_result: Optional[dict]
     decision_saved: Optional[bool]
     final_status: Optional[str]
