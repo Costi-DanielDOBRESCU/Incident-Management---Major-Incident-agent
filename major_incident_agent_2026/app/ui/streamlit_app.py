@@ -62,19 +62,18 @@ with st.sidebar:
 
     VIEW_FLOW = "Flux incident"
     VIEW_HISTORY = "Istoric incidente"
-    st.sidebar.divider()
-    VIEW = st.sidebar.radio("Navigare", [VIEW_FLOW, VIEW_HISTORY], key="nav_view")
 
-    st.sidebar.divider()
-    st.markdown(
-        '<div style="font-size: 0.78rem; color: #94A3B8; line-height: 1.5;">'
-        '<strong>Server LangGraph:</strong><br/>'
-        f'<code>{LANGGRAPH_URL}</code><br/><br/>'
-        '<strong>Graf activ:</strong><br/>'
-        f'<code>{GRAPH_NAME}</code>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
+    if "nav_view" not in st.session_state:
+        st.session_state["nav_view"] = VIEW_FLOW
+
+    if st.sidebar.button("Flux incident", use_container_width=True):
+        st.session_state["nav_view"] = VIEW_FLOW
+        st.rerun()
+    if st.sidebar.button("Istoric incidente", use_container_width=True):
+        st.session_state["nav_view"] = VIEW_HISTORY
+        st.rerun()
+
+    VIEW = st.session_state["nav_view"]
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +88,8 @@ client = get_client()
 
 
 def _run_graph(input_payload: dict | None = None, resume: dict | None = None) -> None:
-    """Porneste un run nou (input) sau reia dupa interrupt (resume), pe thread-ul curent."""
+    """Porneste un run nou (input), reia dupa interrupt (resume) sau, fara argumente, reia de la ultimul
+    checkpoint (dupa o eroare de nod, ex. limita LLM), pe thread-ul curent."""
     thread_id = st.session_state["thread_id"]
     try:
         if resume is not None:
@@ -189,36 +189,74 @@ st.markdown(
     [data-testid="stCaptionContainer"] p,
     [data-testid="stCaptionContainer"] { color: var(--itsm-text-muted); }
 
-    /* Sidebar Styling */
+
+    /* Sidebar Styling (Harmonized with Header Gradient) */
     [data-testid="stSidebar"] {
-        background-color: #0F172A !important;
-        border-right: 1px solid #1E293B !important;
+        background-color: #131E38 !important;
+        border-right: 1px solid #1E3A8A !important;
+        padding-top: 0.5rem;
     }
-    [data-testid="stSidebar"] * { color: #E2E8F0 !important; }
-    [data-testid="stSidebar"] .stRadio label p { color: #E2E8F0 !important; font-weight: 500; }
-    [data-testid="stSidebar"] input {
-        background-color: #1E293B !important;
-        color: #FFFFFF !important;
-        border: 1px solid #334155 !important;
-        border-radius: 4px !important;
+    [data-testid="stSidebar"] * { color: #F8FAFC !important; }
+
+    /* Etichetele din sidebar */
+    [data-testid="stSidebar"] label p, [data-testid="stSidebar"] label {
+        font-size: 0.78rem !important;
+        font-weight: 600 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.04em !important;
+        color: #93C5FD !important;
     }
 
+    /* Input text (Operator activ) */
+    [data-testid="stSidebar"] input {
+        background-color: #21325B !important;
+        color: #FFFFFF !important;
+        border: 1px solid #3B82F6 !important;
+        border-radius: 6px !important;
+        padding: 0.45rem 0.75rem !important;
+    }
+    [data-testid="stSidebar"] input:focus {
+        border-color: #2563EB !important;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3) !important;
+    }
+
+    /* Butoanele de navigare din sidebar */
+    [data-testid="stSidebar"] .stButton button {
+        background-color: #21325B !important;
+        color: #F8FAFC !important;
+        border: 1px solid #3B82F6 !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+        font-size: 0.875rem !important;
+        padding: 0.5rem 0.85rem !important;
+        text-align: left !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+    [data-testid="stSidebar"] .stButton button:hover {
+        background-color: #2563EB !important;
+        border-color: #2563EB !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3) !important;
+    }
+
+    /* Branding header din sidebar */
     .sidebar-branding {
         padding: 0.25rem 0 0.85rem 0;
-        border-bottom: 1px solid #1E293B;
+        border-bottom: 1px solid #1E3A8A;
         margin-bottom: 1rem;
     }
     .sidebar-branding-title {
         font-size: 1.1rem;
         font-weight: 700;
-        color: #F8FAFC !important;
+        color: #FFFFFF !important;
         letter-spacing: -0.01em;
     }
     .sidebar-branding-sub {
         font-size: 0.72rem;
-        color: #94A3B8 !important;
+        color: #93C5FD !important;
         text-transform: uppercase;
         letter-spacing: 0.05em;
+        margin-top: 0.15rem;
     }
 
     /* Container Blocks & Cards */
@@ -279,7 +317,7 @@ st.markdown(
 
     /* ITSM Banner Header */
     .itsm-header-banner {
-        background: linear-gradient(90deg, #0F172A 0%, #1E3A8A 100%);
+        background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%);
         color: #FFFFFF;
         padding: 1.1rem 1.4rem;
         border-radius: 6px;
@@ -306,6 +344,7 @@ st.markdown(
         width: 8px; height: 8px; border-radius: 50%;
         background-color: #22C55E; margin-right: 0.45rem; display: inline-block;
     }
+    .itsm-status-dot.off { background-color: #EF4444; }
 
     .mia-meta { font-size: 0.85rem; color: var(--itsm-text-muted); line-height: 1.6; }
     .mia-mono {
@@ -373,8 +412,8 @@ st.markdown(
 
     /* Stepper Header Bar */
     .mia-stepper {
-        display: flex; align-items: flex-start; margin: 1.1rem 0 1.5rem 0;
-        background: #FFFFFF; padding: 0.9rem 0.5rem;
+        display: flex; align-items: center; margin: 1.1rem 0 1.5rem 0;
+        background: #FFFFFF; padding: 1.2rem 0.5rem;
         border: 1px solid var(--itsm-border); border-radius: 6px;
     }
     .mia-step { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; }
@@ -389,14 +428,11 @@ st.markdown(
         font-size: 0.78rem; font-weight: 700; z-index: 1;
         background-color: #FFFFFF; border: 2px solid #CBD5E1; color: #64748B;
         transition: all 0.2s ease;
-    }
-    .mia-step.done .mia-step-circle { background-color: #2563EB; border-color: #2563EB; color: #FFFFFF; }
-    .mia-step.current .mia-step-circle {
-        border-color: #2563EB; background-color: #EFF6FF; color: #1D4ED8;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+        flex-shrink: 0;
     }
     .mia-step-label {
-        font-size: 0.74rem; color: #64748B; margin-top: 0.35rem; text-align: center; max-width: 110px; font-weight: 500;
+        font-size: 0.74rem; color: #64748B; margin-top: 0.4rem; text-align: center; max-width: 110px; font-weight: 500;
+        height: 2.6rem; display: flex; align-items: center; justify-content: center; line-height: 1.2;
     }
     .mia-step.current .mia-step-label { color: #0F172A; font-weight: 700; }
     .mia-step.done .mia-step-label { color: #334155; font-weight: 600; }
@@ -526,6 +562,8 @@ def _reset_flow() -> None:
         )
     st.session_state["thread_id"] = None  # thread nou se creeaza la urmatoarea pornire a grafului
     st.session_state["cluster_threads"] = {}
+    st.session_state.pop("live_ticket_detail", None)  # selectia din tabelul live nu mai exista dupa reset
+    st.session_state.pop("comm_buffer", None)
     st.session_state["wizard_step"] = 0
 
 
@@ -562,14 +600,17 @@ def _ticket_details(issue: dict, key_prefix: str) -> None:
     ]
     cols = st.columns(4)
     for i, (label, value) in enumerate(meta):
-        cols[i % 4].caption(label)
-        cols[i % 4].text(value)
-    st.text_area(
-        "Descriere",
-        value=f.get("description") or "(fără descriere)",
-        height=140,
-        disabled=True,
-        key=f"{key_prefix}_desc_{issue.get('key')}",
+        cols[i % 4].markdown(
+            f'<div style="font-size: 0.78rem; color: #64748B; font-weight: 600; text-transform: uppercase;">{escape(str(label))}</div>'
+            f'<div style="font-size: 0.95rem; color: #0F172A; font-weight: normal; margin-bottom: 0.75rem;">{escape(str(value))}</div>',
+            unsafe_allow_html=True,
+        )
+    
+    desc_val = f.get("description") or "(fără descriere)"
+    st.markdown(
+        f'<div style="font-size: 0.78rem; color: #64748B; font-weight: 600; text-transform: uppercase; margin-top: 0.5rem; margin-bottom: 0.3rem;">Descriere</div>'
+        f'<div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 0.85rem 1rem; color: #0F172A; font-size: 0.9rem; line-height: 1.5; font-weight: normal; margin-bottom: 0.5rem;">{escape(desc_val)}</div>',
+        unsafe_allow_html=True,
     )
 
 
@@ -892,7 +933,7 @@ def _live_tickets_view() -> None:
             issue = ticket_store.get_raw_issue(chosen_key)
             if issue:
                 with st.container(border=True):
-                    _ticket_details(issue, key_prefix="live")
+                    _ticket_details(issue, key_prefix="live")  
     else:
         st.info("Niciun tichet încă. Verifică dacă ingestorul rulează (python -m app.ingestion.ingestor).")
 
@@ -902,6 +943,56 @@ def _mock_post(path: str) -> dict | None:
         return httpx.post(f"{MOCK_URL}{path}", timeout=5).json()
     except httpx.HTTPError:
         return None
+
+
+@st.cache_data(ttl=10, show_spinner=False)
+def _langgraph_online() -> bool:
+    """True daca serverul LangGraph raspunde la HTTP (verificare scurta, retinuta 10 secunde)."""
+    try:
+        return httpx.get(f"{LANGGRAPH_URL}/ok", timeout=1.5).status_code < 500
+    except httpx.HTTPError:
+        return False
+
+
+def _compute_detection(tickets: list[dict]) -> dict:
+    """Detectia pe un snapshot de tichete; rezultatul se retine in session_state."""
+    raw_clusters, similarity_matrix = detect_clusters_with_matrix(tickets, embed=cached_embedding)
+    clusters = [
+        build_incident_cluster(tickets, similarity_matrix, idx, seq)
+        for seq, idx in enumerate(raw_clusters, start=1)
+    ]
+    return {
+        "tickets": tickets,
+        "clusters": clusters,
+        "indices_by_cluster": {c.cluster_id: idx for c, idx in zip(clusters, raw_clusters)},
+        "unclustered": find_unclustered(
+            tickets, raw_clusters, similarity_matrix, [c.cluster_id for c in clusters]
+        ),
+    }
+
+
+def _start_detection() -> None:
+    """Un singur click de la tichete la clustere: snapshot + detectie, apoi se trece la pasul 2."""
+    snapshot = ticket_store.list_raw_issues()
+    if not snapshot:
+        st.warning("Încă nu a sosit niciun tichet.")
+        return
+    try:
+        with st.spinner("Se rulează detecția (embeddings + similaritate)..."):
+            result = _compute_detection(snapshot)
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"Detecția a eșuat: {exc}. Verifică dacă Ollama rulează.")
+        return
+    clusters = result["clusters"]
+    st.session_state.update(
+        stream_tickets=snapshot,
+        stream_done=True,
+        detection_result=result,
+        cluster_threads={},
+        selected_cluster_id=clusters[0].cluster_id if len(clusters) == 1 else None,
+        wizard_step=1,
+    )
+    st.rerun()
 
 
 # Pornire automata a fluxului de tichete la intrarea in aplicatie (idempotent pe server)
@@ -915,6 +1006,7 @@ if VIEW == VIEW_HISTORY:
     st.stop()
 
 # ITSM Command Center Main Header
+_online = _langgraph_online()
 st.markdown(
     '<div class="itsm-header-banner">'
     '<div>'
@@ -922,11 +1014,14 @@ st.markdown(
     '<div class="itsm-header-sub">Orchestrator Agentic LangGraph &bull; Dispecerat ITSM Operations</div>'
     '</div>'
     '<div class="itsm-status-pill">'
-    '<span class="itsm-status-dot"></span> LangGraph Sync Online'
+    f'<span class="itsm-status-dot{"" if _online else " off"}"></span> '
+    f'{"LangGraph conectat" if _online else "LangGraph indisponibil"}'
     '</div>'
     '</div>',
     unsafe_allow_html=True,
 )
+if not _online:
+    st.error(f"Serverul LangGraph nu răspunde la {LANGGRAPH_URL}. Pornește-l cu `langgraph dev` și reîncarcă pagina.")
 
 if st.session_state["thread_id"]:
     st.caption(f"Thread LangGraph curent: `{st.session_state['thread_id']}`")
@@ -948,17 +1043,23 @@ if step == 0:
 
     _live_tickets_view()
 
-    if st.button("Next: Detecție & clustering", type="primary"):
-        snapshot = ticket_store.list_raw_issues()
-        if not snapshot:
-            st.warning("Încă nu a sosit niciun tichet.")
-        else:
-            st.session_state["stream_tickets"] = snapshot
-            st.session_state["stream_done"] = True
-            st.session_state["detection_result"] = None
-            st.session_state["cluster_threads"] = {}
-            st.session_state["wizard_step"] = 1
-            st.rerun()
+    n_started = len(st.session_state["cluster_threads"])
+    if st.session_state["detection_result"] is not None and n_started:
+        # exista clustere cu evaluari pornite: o noua detectie le-ar pierde, deci oferim intoarcerea la ele
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button(f"Înapoi la clustere ({n_started} cu evaluare pornită)", type="primary"):
+                st.session_state["wizard_step"] = 1
+                st.rerun()
+        with col_b:
+            if st.button("Reia detecția cu tichetele curente"):
+                _start_detection()
+        st.caption(
+            "Reluarea detecției recalculează clusterele. Deciziile deja luate rămân în Istoric, "
+            "dar clusterele de pe ecranul curent se pierd."
+        )
+    elif st.button("Next: Detecție & clustering", type="primary"):
+        _start_detection()
 
 # ===========================================================================
 # PASUL 2 - Detecție & clustering
@@ -976,24 +1077,9 @@ elif step == 1:
     tickets = st.session_state["stream_tickets"]
 
     if st.session_state["detection_result"] is None:
+        st.info("Clusterele nu au fost calculate încă.")
         if st.button("Rulează detecția", type="primary"):
-            with st.spinner("Se calculează embeddings + similaritate..."):
-                raw_clusters, similarity_matrix = detect_clusters_with_matrix(tickets, embed=cached_embedding)
-                clusters = [
-                    build_incident_cluster(tickets, similarity_matrix, idx, seq)
-                    for seq, idx in enumerate(raw_clusters, start=1)
-                ]
-                st.session_state["detection_result"] = {
-                    "tickets": tickets,
-                    "clusters": clusters,
-                    "indices_by_cluster": {c.cluster_id: idx for c, idx in zip(clusters, raw_clusters)},
-                    "unclustered": find_unclustered(
-                        tickets, raw_clusters, similarity_matrix, [c.cluster_id for c in clusters]
-                    ),
-                }
-                if len(clusters) == 1:
-                    st.session_state["selected_cluster_id"] = clusters[0].cluster_id
-            st.rerun()
+            _start_detection()
     else:
         clusters = st.session_state["detection_result"]["clusters"]
 
@@ -1064,7 +1150,7 @@ elif step == 1:
                         indices = detection["indices_by_cluster"][selected.cluster_id]
                         summaries = [detection["tickets"][i]["fields"]["summary"] for i in indices]
 
-                        with st.spinner("Se creează thread-ul și rulează node_assessment_incident pe server..."):
+                        with st.spinner("Se creează thread-ul și rulează node_assess_incident pe server..."):
                             thread = client.threads.create()
                             st.session_state["thread_id"] = thread["thread_id"]
                             st.session_state["cluster_threads"][selected.cluster_id] = thread["thread_id"]
@@ -1131,9 +1217,20 @@ elif step == 2:
                 st.session_state["wizard_step"] = 3
                 st.rerun()
     else:
-        st.info("Se procesează de către LangGraph...")
-        if st.button("Reîncearcă pasul"):
-            st.rerun()
+        st.warning(
+            "Evaluarea AI nu s-a finalizat. De obicei înseamnă o eroare a LLM-ului "
+            "(limită Groq depășită, Ollama oprit) sau o execuție întreruptă. Poți relua evaluarea."
+        )
+        col_a, col_b = st.columns([1, 5])
+        with col_a:
+            if st.button("Back"):
+                st.session_state["wizard_step"] = 1
+                st.rerun()
+        with col_b:
+            if st.button("Reia evaluarea", type="primary"):
+                with st.spinner("Se reia evaluarea pe server..."):
+                    _run_graph()
+                st.rerun()
 
 # ===========================================================================
 # PASUL 4 - Aprobare umană (HITL #1 via LangGraph interrupt)
@@ -1176,6 +1273,19 @@ elif step == 3:
                 st.session_state["wizard_step"] = 5
                 st.rerun()
 
+    elif user_approved is None and "node_human_review_incident" not in pending_nodes:
+        st.warning("Graful nu așteaptă încă o decizie umană (execuție neterminată). Poți relua execuția.")
+        col_a, col_b = st.columns([1, 5])
+        with col_a:
+            if st.button("Back"):
+                st.session_state["wizard_step"] = 2
+                st.rerun()
+        with col_b:
+            if st.button("Reia execuția", type="primary"):
+                with st.spinner("Se reia execuția pe server..."):
+                    _run_graph()
+                st.rerun()
+
     elif user_approved is None:
         ai_candidate = (assessment or {}).get("is_major_incident_candidate", True)
         if ai_candidate:
@@ -1187,8 +1297,9 @@ elif step == 3:
             col_a, col_b = st.columns(2)
             with col_a:
                 if st.button("Aprobă Major Incident", type="primary"):
-                    with st.spinner("Se transmite decizia către LangGraph (resume)..."):
+                    with st.spinner("Se transmite decizia și se generează comunicările (LangGraph)..."):
                         _run_graph(resume={"approved": True, "decided_by": DECIDED_BY})
+                    st.session_state["wizard_step"] = 4  # un click: direct la comunicari
                     st.rerun()
             with col_b:
                 if st.button("Respinge"):
@@ -1198,6 +1309,7 @@ elif step == 3:
                             "reason": reason.strip(),
                             "decided_by": DECIDED_BY,
                         })
+                    st.session_state["wizard_step"] = 5  # nu exista comunicari: direct la sumar
                     st.rerun()
         else:
             st.info(
@@ -1219,17 +1331,22 @@ elif step == 3:
                             "reason": reason.strip(),
                             "decided_by": DECIDED_BY,
                         })
+                    st.session_state["wizard_step"] = 5
                     st.rerun()
             with col_b:
                 if st.button("Declar incident major", type="primary"):
-                    with st.spinner("Se transmite decizia către LangGraph (resume)..."):
+                    with st.spinner("Se transmite decizia și se generează comunicările (LangGraph)..."):
                         _run_graph(resume={
                             "approved": True,
                             "severity": severity,
                             "reason": reason.strip(),
                             "decided_by": DECIDED_BY,
                         })
+                    st.session_state["wizard_step"] = 4
                     st.rerun()
+        if st.button("Back"):
+            st.session_state["wizard_step"] = 2
+            st.rerun()
     else:
         ai_candidate = (assessment or {}).get("is_major_incident_candidate", True)
         status_label = _decision_label(ai_candidate, user_approved)
@@ -1283,11 +1400,14 @@ elif step == 4:
 
         drafts = values.get("communication_drafts", {})
         comm_approvals = values.get("user_approved_communications", {})
+        pending_nodes = thread_state.get("next") or []
 
         if drafts:
             thread_id = st.session_state["thread_id"]
             edited_audiences = values.get("communication_edits") or {}
             labels = {"end_users": "End users", "management": "Management"}
+            # textul editat se retine si cand navighezi in alta parte si te intorci (Streamlit sterge starea widgeturilor nerandate)
+            buffer = st.session_state.setdefault("comm_buffer", {}).setdefault(thread_id, {})
 
             if comm_approvals:
                 for audience, draft in drafts.items():
@@ -1298,20 +1418,35 @@ elif step == 4:
                         note = "editat de operator" if audience in edited_audiences else "text generat, needitat"
                         st.caption(f"Surse: {', '.join(draft['rag_sources'])} · {note}")
                 st.markdown('<span class="mia-status approved">Comunicări Aprobate</span>', unsafe_allow_html=True)
+
+                col_a, col_b = st.columns([1, 5])
+                with col_a:
+                    if st.button("Back"):
+                        st.session_state["wizard_step"] = 3
+                        st.rerun()
+                with col_b:
+                    if st.button("Next: Sumar", type="primary"):
+                        st.session_state["wizard_step"] = 5
+                        st.rerun()
             else:
                 st.caption("Poți edita subiectul și textul înainte de aprobare. Versiunea finală (și originalul) se salvează.")
                 edits: dict[str, dict] = {}
                 approvals: dict[str, bool] = {}
                 invalid = False
                 for audience, draft in drafts.items():
+                    subject_key = f"comm_subject_{thread_id}_{audience}"
+                    body_key = f"comm_body_{thread_id}_{audience}"
+                    saved = buffer.get(audience, {})
+                    if subject_key not in st.session_state:
+                        st.session_state[subject_key] = saved.get("subject", draft["subject"])
+                    if body_key not in st.session_state:
+                        st.session_state[body_key] = saved.get("body", draft["body"])
+
                     with st.container(border=True):
                         st.markdown(f'<div class="mia-comm-label">{labels.get(audience, audience)}</div>', unsafe_allow_html=True)
-                        subject = st.text_input(
-                            "Subiect", value=draft["subject"], key=f"comm_subject_{thread_id}_{audience}"
-                        )
-                        body = st.text_area(
-                            "Text", value=draft["body"], height=220, key=f"comm_body_{thread_id}_{audience}"
-                        )
+                        subject = st.text_input("Subiect", key=subject_key)
+                        body = st.text_area("Text", height=220, key=body_key)
+                        buffer[audience] = {"subject": subject, "body": body}
                         st.caption(f"Surse: {', '.join(draft['rag_sources'])}")
                         approvals[audience] = st.checkbox(
                             "Aprobă această comunicare", value=True, key=f"comm_ok_{thread_id}_{audience}"
@@ -1323,29 +1458,42 @@ elif step == 4:
                             edits[audience] = {"subject": subject.strip(), "body": body.strip()}
                             st.caption("Modificat față de textul generat.")
 
-                if st.button("Aprobă și Finalizează Comunicările", disabled=invalid, type="primary"):
-                    with st.spinner("Se confirmă aprobarea comunicatelor în LangGraph..."):
-                        _run_graph(resume={
-                            "approved_users": approvals.get("end_users", False),
-                            "approved_mgmt": approvals.get("management", False),
-                            "edits": edits,
-                            "decided_by": DECIDED_BY,
-                        })
-                    st.rerun()
-
+                col_a, col_b = st.columns([1, 5])
+                with col_a:
+                    if st.button("Back"):
+                        st.session_state["wizard_step"] = 3
+                        st.rerun()
+                with col_b:
+                    if st.button("Aprobă și Finalizează Comunicările", disabled=invalid, type="primary"):
+                        with st.spinner("Se confirmă aprobarea comunicatelor și se salvează decizia..."):
+                            _run_graph(resume={
+                                "approved_users": approvals.get("end_users", False),
+                                "approved_mgmt": approvals.get("management", False),
+                                "edits": edits,
+                                "decided_by": DECIDED_BY,
+                            })
+                        st.session_state["wizard_step"] = 5  # un click: direct la sumar
+                        st.rerun()
+        elif "node_human_review_communication" in pending_nodes:
+            st.info("Comunicările se generează...")
+            if st.button("Reîmprospătează"):
+                st.rerun()
+        else:
+            st.warning(
+                "Comunicările nu au fost generate. De obicei înseamnă o eroare a LLM-ului "
+                "(limită Groq depășită, Ollama oprit). Decizia ta de a declara incidentul este păstrată; "
+                "poți relua generarea."
+            )
             col_a, col_b = st.columns([1, 5])
             with col_a:
                 if st.button("Back"):
                     st.session_state["wizard_step"] = 3
                     st.rerun()
             with col_b:
-                if st.button("Next: Sumar", type="primary"):
-                    st.session_state["wizard_step"] = 5
+                if st.button("Reia generarea comunicărilor", type="primary"):
+                    with st.spinner("Se reia generarea comunicărilor pe server..."):
+                        _run_graph()
                     st.rerun()
-        else:
-            st.warning("Draft-urile de comunicare se generează...")
-            if st.button("Reîncarcă"):
-                st.rerun()
 
 # ===========================================================================
 # PASUL 6 - Sumar
@@ -1397,17 +1545,46 @@ elif step == 5:
 
         st.markdown(f"**LangGraph State Status:** `{final_status}`")
 
+    # La incidentele declarate, decizia ajunge in Istoric abia dupa aprobarea comunicarilor
+    if user_approved is True and not comm_approvals:
+        st.warning(
+            "Incidentul este declarat, dar comunicările nu au fost aprobate. "
+            "Decizia se salvează în Istoric abia după aprobarea lor."
+        )
+        if st.button("Continuă: aprobă comunicările", type="primary"):
+            st.session_state["wizard_step"] = 4
+            st.rerun()
+
+    # Clustere ramase neevaluate sau nefinalizate: nu le pierde din greseala la "incident nou"
+    unfinished = []
+    detection = st.session_state.get("detection_result")
+    if detection:
+        threads = st.session_state["cluster_threads"]
+        for c in detection["clusters"]:
+            code, status_text = _cluster_status(threads.get(c.cluster_id))
+            if code not in DONE_CODES:
+                unfinished.append(f"`{c.cluster_id}` · {c.service_guess} · {status_text}")
+
+    discard_ok = True
+    if unfinished:
+        st.warning(
+            f"Mai ai {len(unfinished)} cluster(e) de evaluat sau de finalizat. "
+            "Dacă începi un incident nou, ele se pierd."
+        )
+        for line in unfinished:
+            st.markdown(f"- {line}")
+        discard_ok = st.checkbox("Renunț la aceste clustere", key=f"discard_{st.session_state['thread_id']}")
+
     col_a, col_b = st.columns([1, 5])
     with col_a:
-        if st.button("Înapoi la clustere"):
+        if st.button("Înapoi la clustere", type="primary" if unfinished else "secondary"):
             st.session_state["selected_cluster_id"] = None
             st.session_state["wizard_step"] = 1
             st.rerun()
     with col_b:
-        if st.button("Începe un incident nou", type="primary"):
+        if st.button("Începe un incident nou", disabled=not discard_ok, type="secondary" if unfinished else "primary"):
             _mock_post("/mock/reset")
             ticket_store.reset_db()
             _mock_post("/mock/start")
             _reset_flow()
             st.rerun()
-            
