@@ -195,7 +195,7 @@ st.markdown(
 
     /* Sidebar Styling (Harmonized with Header Gradient) */
     [data-testid="stSidebar"] {
-        background-color: #131E38 !important;
+        background-color: #143791 !important;
         border-right: 1px solid #1E3A8A !important;
         padding-top: 0.5rem;
     }
@@ -212,7 +212,7 @@ st.markdown(
 
     /* Input text (Operator activ) */
     [data-testid="stSidebar"] input {
-        background-color: #21325B !important;
+        background-color: #143791 !important;
         color: #FFFFFF !important;
         border: 1px solid #3B82F6 !important;
         border-radius: 6px !important;
@@ -225,7 +225,7 @@ st.markdown(
 
     /* Butoanele de navigare din sidebar */
     [data-testid="stSidebar"] .stButton button {
-        background-color: #21325B !important;
+        background-color: #143791 !important;
         color: #F8FAFC !important;
         border: 1px solid #3B82F6 !important;
         border-radius: 6px !important;
@@ -533,7 +533,7 @@ STEPS = [
     "Tichete",
     "Detectie & clustering",
     "Evaluare AI (LLM + RAG)",
-    "Aprobare humana",
+    "Aprobare umana",
     "Comunicari",
     "Sumar",
 ]
@@ -625,6 +625,21 @@ def _save_review(ticket_key: str, created: str, widget_key: str) -> None:
         st.session_state["review_error"] = str(exc)
 
 
+def _mark_cluster_handled(ticket_ids: list[str]) -> int:
+    """Marcheaza tichetele unui cluster „Tratat individual” (dispar la urmatoarea runda). Intoarce cate au fost marcate."""
+    marked = 0
+    for key in ticket_ids:
+        issue = ticket_store.get_raw_issue(key)
+        if not issue:
+            continue
+        try:
+            ticket_reviews.set_review(key, issue["fields"]["created"], "handled", DECIDED_BY)
+            marked += 1
+        except Exception:  # noqa: BLE001
+            pass
+    return marked
+
+
 def _carry_over_unclustered() -> dict:
     """
     Inainte de o noua runda: sterge din tabelul de ingestie tichetele legate de un incident major declarat,
@@ -659,7 +674,7 @@ def _render_unclustered(detection: dict, tickets_by_key: dict) -> None:
     st.caption(
         f"{statuses.count('unreviewed')} nerevizuite · {statuses.count('handled')} tratate individual · "
         f"{statuses.count('watch')} de urmărit. Sortate după apropierea de cel mai apropiat cluster "
-        "(informativ, nu modifică clusterele)."
+        "(informativ)."
     )
     st.caption(
         f"Tichetele **nerevizuite** și **de urmărit** rămân în sistem cel mult "
@@ -962,7 +977,7 @@ def _render_outside_tickets() -> None:
     """Tichetele care NU sunt legate de un incident declarat: fara cluster sau din clustere respinse / nepropuse."""
     st.caption(
         "Tichetele din baza locală care nu fac parte dintr-un incident major declarat: fără cluster sau din "
-        "clustere respinse / nepropuse de AI. Dispar când le elimină retenția (la „Începe un incident nou”)."
+        "clustere respinse / nepropuse de AI."
     )
     flash = st.session_state.pop("attach_flash", None)
     if flash:
@@ -1260,7 +1275,7 @@ if step == 0:
     st.subheader(STEPS[0])
     _node_box(
         "Ticket Intake (live)",
-        "Tichetele sosesc în timp real prin API-ul Jira, sunt preluate de ingestor și salvate "
+        "Tichetele sosesc în timp real prin mock Jira API, sunt preluate de ingestor și salvate "
         "într-un tabel local.",
     )
 
@@ -1290,11 +1305,9 @@ if step == 0:
 elif step == 1:
     st.subheader(STEPS[1])
     _node_box(
-        "Detection Pipeline",
-        "Calculează embeddings BGE-M3 pe textul complet al tichetului (rezumat, descriere, serviciu, etichete) "
-        "și similaritatea cosinus, apoi grupează tichetele corelate pe o fereastră glisantă de "
-        f"{settings.clustering_window_minutes} min, unind clusterele suprapuse "
-        f"(prag {settings.similarity_threshold}, minim {settings.min_tickets_per_cluster} tichete/cluster).",
+            "Detection Pipeline",
+            f"Analizează tichetele noi, identifică tipare comune și grupează incidentele corelate "
+            f"(fereastră de {settings.clustering_window_minutes} minute) pentru a detecta posibile probleme majore.",
     )
 
     tickets = st.session_state["stream_tickets"]
@@ -1368,12 +1381,12 @@ elif step == 1:
                     st.rerun()
             with col_b:
                 if code == "new":
-                    if st.button("Next: Evaluare AI (Pornire Graf LangGraph)", type="primary"):
+                    if st.button("Next: Evaluare AI", type="primary"):
                         detection = st.session_state["detection_result"]
                         indices = detection["indices_by_cluster"][selected.cluster_id]
                         summaries = [detection["tickets"][i]["fields"]["summary"] for i in indices]
 
-                        with st.spinner("Se creează thread-ul și rulează node_assess_incident pe server..."):
+                        with st.spinner("Se creează thread-ul și rulează node_assessment_incident pe server..."):
                             thread = client.threads.create()
                             st.session_state["thread_id"] = thread["thread_id"]
                             st.session_state["cluster_threads"][selected.cluster_id] = thread["thread_id"]
@@ -1405,8 +1418,8 @@ elif step == 1:
 elif step == 2:
     st.subheader(STEPS[2])
     _node_box(
-        "Assessment Agent (node_assess_incident)",
-        "Nodul din LangGraph interoghează RAG/ChromaDB și LLM Ollama pentru clasificare severitate "
+        "Assessment Agent",
+        "Nodul din LangGraph interoghează RAG/ChromaDB și LLM pentru clasificare severitate "
         "și candidat Incident Major.",
     )
 
@@ -1461,9 +1474,8 @@ elif step == 2:
 elif step == 3:
     st.subheader(STEPS[3])
     _node_box(
-        "Human-in-the-loop #1 (node_human_review_incident)",
-        "Graful LangGraph s-a întrerupt nativ (interrupt) și așteaptă o decizie umană "
-        "transmisă prin resume.",
+        "Human-in-the-loop",
+        "Graful LangGraph s-a întrerupt nativ (interrupt) și așteaptă o decizie umană ",
     )
 
     thread_state = _get_thread_state()
@@ -1536,7 +1548,7 @@ elif step == 3:
                     st.rerun()
         else:
             st.info(
-                "Assessment nu a propus incident major. Decizia îți aparține: confirmă că nu e incident "
+                "Assessment Agent nu a propus un incident major. Decizia îți aparține: confirmă că nu e incident "
                 "sau declară incident major."
             )
             reason = st.text_input(
@@ -1548,7 +1560,7 @@ elif step == 3:
             col_a, col_b = st.columns(2)
             with col_a:
                 if st.button("Confirm: nu e incident"):
-                    with st.spinner("Se transmite decizia către LangGraph (resume)..."):
+                    with st.spinner("Se transmite decizia către LangGraph ..."):
                         _run_graph(resume={
                             "approved": False,
                             "reason": reason.strip(),
@@ -1558,7 +1570,7 @@ elif step == 3:
                     st.rerun()
             with col_b:
                 if st.button("Declar incident major", type="primary"):
-                    with st.spinner("Se transmite decizia și se generează comunicările (LangGraph)..."):
+                    with st.spinner("Se transmite decizia și se generează comunicările ..."):
                         _run_graph(resume={
                             "approved": True,
                             "severity": severity,
@@ -1778,6 +1790,23 @@ elif step == 5:
                 )
 
         st.markdown(f"**LangGraph State Status:** `{final_status}`")
+
+    # Cluster respins / "nu e incident": operatorul poate trata individual tichetele lui (dispar la urmatoarea runda)
+    if user_approved is False and cluster:
+        handled_key = f"cluster_handled_{st.session_state['thread_id']}"
+        if st.session_state.get(handled_key):
+            st.success(
+                f"{st.session_state[handled_key]} tichete marcate „Tratat individual”. "
+                "Dispar din tabel la „Începe un incident nou” (cu opțiunea de păstrare bifată)."
+            )
+        else:
+            if st.button("Tratează individual tichetele acestui cluster", key=f"handle_cluster_{handled_key}"):
+                st.session_state[handled_key] = _mark_cluster_handled(cluster.get("ticket_ids") or [])
+                st.rerun()
+            st.caption(
+                "Dacă nu le tratezi individual, tichetele rămân în tabel (nerevizuite) pentru următoarea detecție. "
+                "Starea lor se poate schimba oricând și din Istoric, tabul „Tichete în afara incidentelor”."
+            )
 
     # La incidentele declarate, decizia ajunge in Istoric abia dupa aprobarea comunicarilor
     if user_approved is True and not comm_approvals:

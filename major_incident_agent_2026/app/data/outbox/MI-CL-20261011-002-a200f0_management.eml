@@ -1,0 +1,14 @@
+From: mia-noreply@company.example
+To: management@company.example
+Subject: Major Incident MI-CL-20261011-002-a200f0 =?utf-8?b?4oCT?= SEV1
+ Network/Switch
+Date: Sun, 11 Oct 2026 11:48:31 +0000
+X-MIA-Incident: MI-CL-20261011-002-a200f0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+SEV1 declared for Network/Switch at 11:46 UTC. Organisation-wide business imp=
+act. 6 correlated tickets in 0.5 min. Suspected cause: Central service disrup=
+tion affecting Network/Switch. Incident bridge is open. Next update: 12:48 UT=
+C.
