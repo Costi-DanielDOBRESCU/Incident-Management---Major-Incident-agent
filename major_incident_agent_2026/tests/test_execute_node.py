@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.execution import audit_store, tools
+from app.execution import audit_store, ticket_archive, tools
+from app.ingestion import ticket_store
 from app.models.schemas import CommunicationDraft, IncidentCluster, MajorIncident
 from app.orchestrator import graph
 
@@ -12,6 +13,7 @@ from app.orchestrator import graph
 @pytest.fixture(autouse=True)
 def isolated_db(tmp_path, monkeypatch):
     monkeypatch.setattr(audit_store, "DB_PATH", tmp_path / "audit.db")
+    monkeypatch.setattr(ticket_store, "DB_PATH", tmp_path / "tickets.db")
 
 
 def _state(approved_incident=True, approved_users=True, approved_mgmt=False):
@@ -87,3 +89,26 @@ def test_workflow_contains_execute_node_between_review_and_persist():
     assert ("node_human_review_communication", "node_execute_actions") in edges
     assert ("node_execute_actions", "node_persist_and_learn") in edges
     assert ("node_human_review_communication", "node_persist_and_learn") not in edges
+
+
+def test_persist_node_archives_cluster_tickets(monkeypatch):
+    from app.execution import incident_memory
+
+    monkeypatch.setattr(incident_memory, "remember_decision", lambda d: "MEM-1")
+    ticket_store.init_db()
+    ticket_store.upsert_tickets(
+        [
+            {
+                "key": k,
+                "fields": {
+                    "summary": f"s {k}", "description": "d", "created": "2026-10-10T10:00:00.000+0000",
+                    "priority": {"name": "P2"}, "status": {"name": "Open"},
+                    "components": [{"name": "VPN Gateway"}],
+                },
+            }
+            for k in ("INC-1", "INC-2", "INC-3")
+        ]
+    )
+    graph.node_persist_and_learn(_state())
+    archived = ticket_archive.get_incident_tickets("MI-CL-1-abc123")
+    assert set(archived) == {"INC-1", "INC-2", "INC-3"}

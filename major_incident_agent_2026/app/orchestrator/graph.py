@@ -390,6 +390,22 @@ def node_persist_and_learn(state: IncidentState) -> dict:
         output_ref=decision["outcome"],
     )
 
+    # Arhiveaza tichetele clusterului (Istoricul le vede si dupa curatarea tabelului de ingestie)
+    try:
+        from app.execution import ticket_archive
+        from app.ingestion import ticket_store
+
+        issues = [i for i in (ticket_store.get_raw_issue(k) for k in decision["ticket_ids"]) if i]
+        archived = ticket_archive.archive_incident_tickets(incident_id, issues)
+        _audit("persistence_layer", "archive_tickets", incident_id=incident_id, output_ref=f"{archived} tickets")
+    except Exception as exc:  # noqa: BLE001
+        _audit(
+            "persistence_layer",
+            "archive_tickets_failed",
+            incident_id=incident_id,
+            output_ref=f"{type(exc).__name__}: {exc}"[:300],
+        )
+
     if decision["outcome"] == "dismissed":
         # memoria de incidente contine doar decizii UMANE (declared/rejected)
         return {"decision_saved": True, "final_status": "DISMISSED_BY_ASSESSMENT"}

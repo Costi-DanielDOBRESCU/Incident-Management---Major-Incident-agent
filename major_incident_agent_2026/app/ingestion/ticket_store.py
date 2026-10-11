@@ -29,7 +29,9 @@ CREATE TABLE IF NOT EXISTS tickets (
     description  TEXT,
     raw_json     TEXT NOT NULL,      -- issue-ul Jira complet
     fetched_at   TEXT NOT NULL,
-    cluster_id   TEXT                -- NULL pana e grupat de detector
+    cluster_id   TEXT,               -- clusterul incidentului declarat (setat la legare)
+    parent_incident_id TEXT,         -- incidentul major la care e legat tichetul (NULL = individual)
+    ticket_status      TEXT          -- ex. Linked-MajorIncident (NULL = nemodificat)
 );
 CREATE INDEX IF NOT EXISTS idx_tickets_created_ts ON tickets(created_ts);
 
@@ -46,7 +48,18 @@ def _connect(db_path: Optional[Path] = None) -> sqlite3.Connection:
     conn = sqlite3.connect(path, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")  # Streamlit poate citi cat timp ingestorul scrie
+    _ensure_columns(conn)
     return conn
+
+
+def _ensure_columns(conn: sqlite3.Connection) -> None:
+    """Migrare usoara: adauga coloanele noi pe un tickets.db creat inainte de ele."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(tickets)").fetchall()}
+    if not cols:
+        return  # tabela nu exista inca (init_db o creeaza cu schema noua)
+    for name in ("cluster_id", "parent_incident_id", "ticket_status"):
+        if name not in cols:
+            conn.execute(f"ALTER TABLE tickets ADD COLUMN {name} TEXT")
 
 
 def init_db(db_path: Optional[Path] = None) -> None:
@@ -135,20 +148,48 @@ def list_tickets(limit: int = 200, db_path: Optional[Path] = None) -> list[dict[
     """Ultimele `limit` tichete, cele mai noi primele."""
     with _connect(db_path) as conn:
         rows = conn.execute(
-            "SELECT key, created, service, priority, summary, cluster_id "
+            "SELECT key, created, service, priority, summary, cluster_id, parent_incident_id, ticket_status "
             "FROM tickets ORDER BY created_ts DESC LIMIT ?",
             (limit,),
         ).fetchall()
     return [dict(r) for r in rows]
 
 
-def list_raw_issues(limit: int = 1000, db_path: Optional[Path] = None) -> list[dict[str, Any]]:
-    """Issue-urile Jira complete, in ordine cronologica (pentru detectie/clustering)."""
+def list_raw_issues(
+    limit: int = 1000, db_path: Optional[Path] = None, *, exclude_linked: bool = False
+) -> list[dict[str, Any]]:
+    """
+    Issue-urile Jira complete, in ordine cronologica (pentru detectie/clustering).
+    exclude_linked=True: sare peste tichetele deja legate de un incident major declarat.
+    """
+    where = " WHERE parent_incident_id IS NULL" if exclude_linked else ""
     with _connect(db_path) as conn:
         rows = conn.execute(
-            "SELECT raw_json FROM tickets ORDER BY created_ts ASC LIMIT ?", (limit,)
+            f"SELECT raw_json FROM tickets{where} ORDER BY created_ts ASC LIMIT ?", (limit,)
         ).fetchall()
     return [json.loads(r["raw_json"]) for r in rows]
+
+
+def link_tickets(
+    keys: list[str],
+    parent_incident_id: str,
+    status: str,
+    *,
+    cluster_id: Optional[str] = None,
+    db_path: Optional[Path] = None,
+) -> int:
+    """Leaga tichetele de incidentul major si le seteaza statusul. Intoarce cate tichete au fost actualizate."""
+    init_db(db_path)
+    updated = 0
+    with _connect(db_path) as conn:
+        for key in keys:
+            cur = conn.execute(
+                "UPDATE tickets SET parent_incident_id = ?, ticket_status = ?, "
+                "cluster_id = COALESCE(?, cluster_id) WHERE key = ?",
+                (parent_incident_id, status, cluster_id, key),
+            )
+            updated += cur.rowcount
+    return updated
 
 
 def count_tickets(db_path: Optional[Path] = None) -> int:

@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import datetime, timezone
+from email.message import EmailMessage
+from email.utils import format_datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -31,6 +33,13 @@ from app.execution import audit_store
 ACTOR = "execution_layer"
 LINKED_STATUS = "Linked-MajorIncident"  # doc. pasul 10
 VALID_AUDIENCES = ("end_users", "management")
+
+# Trimiterea simulata: fiecare comunicare devine un fisier .eml in <director audit.db>/outbox/ (se deschide in Outlook/Thunderbird)
+SENDER = "mia-noreply@company.example"
+RECIPIENTS = {
+    "end_users": "end-users@company.example",
+    "management": "management@company.example",
+}
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS notifications (
@@ -83,6 +92,28 @@ def _append_log_file(db_path: Optional[Path], line: str) -> None:
         pass
 
 
+def outbox_path(incident_id: str, audience: str, db_path: Optional[Path] = None) -> Path:
+    """Calea fisierului .eml al unei comunicari trimise (poate sa nu existe)."""
+    return _db(db_path).parent / "outbox" / f"{incident_id}_{audience}.eml"
+
+
+def _write_eml(incident_id: str, audience: str, subject: str, body: str, db_path: Optional[Path]) -> None:
+    """Salveaza comunicarea ca email (.eml). Best effort: nu opreste executia."""
+    try:
+        msg = EmailMessage()
+        msg["From"] = SENDER
+        msg["To"] = RECIPIENTS[audience]
+        msg["Subject"] = subject
+        msg["Date"] = format_datetime(datetime.now(timezone.utc))
+        msg["X-MIA-Incident"] = incident_id
+        msg.set_content(body)
+        path = outbox_path(incident_id, audience, db_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(bytes(msg))
+    except OSError:
+        pass
+
+
 # ---------------------------------------------------------------------------
 # Tool-uri
 # ---------------------------------------------------------------------------
@@ -113,6 +144,7 @@ def send_notification(
         sent = cur.rowcount == 1
 
     if sent:
+        _write_eml(incident_id, audience, subject, body, db_path)
         _append_log_file(
             db_path,
             f"[{sent_at}] {channel} -> {audience} | {incident_id} | {subject}\n{body}\n{'-' * 60}",
@@ -185,6 +217,42 @@ def link_tickets_to_parent(
 
 
 # ---------------------------------------------------------------------------
+# Sincronizare cu tabelul de ingestie (tickets.db)
+# ---------------------------------------------------------------------------
+def _sync_ticket_store(
+    ticket_ids: list[str],
+    incident_id: str,
+    cluster_id: Optional[str],
+    *,
+    db_path: Optional[Path] = None,
+) -> int:
+    """
+    Scrie legatura tichet -> incident (si statusul) si in tabelul `tickets`, ca UI-ul si detectia sa o vada.
+    Best effort: o eroare aici se audita, dar nu opreste executia. Cu db_path (teste), foloseste un
+    tickets.db din acelasi director, ca testele sa nu atinga baza reala.
+    """
+    try:
+        from app.ingestion import ticket_store
+
+        tdb = Path(db_path).parent / "tickets.db" if db_path else None
+        n = ticket_store.link_tickets(ticket_ids, incident_id, LINKED_STATUS, cluster_id=cluster_id, db_path=tdb)
+        audit_store.log_audit_event(
+            ACTOR, "sync_ticket_store", incident_id=incident_id,
+            input_ref=f"tickets:{','.join(ticket_ids)}", output_ref=f"{n} updated", db_path=db_path,
+        )
+        return n
+    except Exception as exc:  # noqa: BLE001
+        try:
+            audit_store.log_audit_event(
+                ACTOR, "sync_ticket_store_failed", incident_id=incident_id,
+                output_ref=f"{type(exc).__name__}: {exc}"[:300], db_path=db_path,
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        return 0
+
+
+# ---------------------------------------------------------------------------
 # Orchestrare
 # ---------------------------------------------------------------------------
 def run_execution(decision: dict[str, Any], *, db_path: Optional[Path] = None) -> dict[str, Any]:
@@ -200,6 +268,7 @@ def run_execution(decision: dict[str, Any], *, db_path: Optional[Path] = None) -
         "notifications_sent": [],
         "notifications_skipped": [],
         "tickets_linked": 0,
+        "tickets_synced": 0,
         "reason": None,
     }
     if decision.get("outcome") != "declared":
@@ -221,6 +290,9 @@ def run_execution(decision: dict[str, Any], *, db_path: Optional[Path] = None) -
     if ticket_ids:
         update_ticket_status(ticket_ids, LINKED_STATUS, incident_id=incident_id, db_path=db_path)
         result["tickets_linked"] = link_tickets_to_parent(ticket_ids, incident_id, db_path=db_path)
+        result["tickets_synced"] = _sync_ticket_store(
+            ticket_ids, incident_id, decision.get("cluster_id"), db_path=db_path
+        )
 
     result["executed"] = True
     return result

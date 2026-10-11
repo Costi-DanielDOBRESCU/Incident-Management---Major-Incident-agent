@@ -3,6 +3,7 @@
 import pytest
 
 from app.execution import audit_store, tools
+from app.ingestion import ticket_store
 
 
 @pytest.fixture
@@ -94,3 +95,79 @@ def test_everything_is_audited(db):
     tools.run_execution(_decision(), db_path=db)
     actions = {e["action"] for e in audit_store.list_audit_events(db_path=db)}
     assert {"send_notification", "update_ticket_status", "link_tickets_to_parent"} <= actions
+
+
+def _seed_tickets(db, keys):
+    """Creeaza tickets.db langa audit.db (asa il foloseste run_execution in teste)."""
+    tdb = db.parent / "tickets.db"
+    ticket_store.init_db(tdb)
+    issues = [
+        {
+            "key": k,
+            "fields": {
+                "summary": "s", "description": "d", "created": "2026-10-10T10:00:00.000+0000",
+                "priority": {"name": "P2"}, "status": {"name": "Open"},
+                "components": [{"name": "VPN Gateway"}],
+            },
+        }
+        for k in keys
+    ]
+    ticket_store.upsert_tickets(issues, db_path=tdb)
+    return tdb
+
+
+def test_run_execution_writes_link_and_status_into_ticket_store(db):
+    tdb = _seed_tickets(db, ["INC-1", "INC-2", "INC-3", "INC-9"])
+    res = tools.run_execution(_decision(cluster_id="CL-7"), db_path=db)
+    assert res["tickets_synced"] == 3
+    rows = {r["key"]: r for r in ticket_store.list_tickets(db_path=tdb)}
+    assert rows["INC-1"]["parent_incident_id"] == "MI-CL-1-abc123"
+    assert rows["INC-1"]["ticket_status"] == "Linked-MajorIncident"
+    assert rows["INC-1"]["cluster_id"] == "CL-7"
+    assert rows["INC-9"]["parent_incident_id"] is None  # tichet din afara clusterului: neatins
+
+
+def test_rejected_incident_does_not_touch_ticket_store(db):
+    tdb = _seed_tickets(db, ["INC-1"])
+    tools.run_execution(_decision(outcome="rejected"), db_path=db)
+    assert ticket_store.list_tickets(db_path=tdb)[0]["parent_incident_id"] is None
+
+
+def test_ticket_store_failure_does_not_stop_execution(db, monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("tickets db locked")
+
+    monkeypatch.setattr(ticket_store, "link_tickets", boom)
+    res = tools.run_execution(_decision(), db_path=db)
+    assert res["executed"] is True and res["tickets_synced"] == 0
+    actions = [e["action"] for e in audit_store.list_audit_events(db_path=db)]
+    assert "sync_ticket_store_failed" in actions
+
+
+def test_notification_is_written_as_eml_in_outbox(db):
+    import email
+    from email import policy
+
+    tools.send_notification("MI-1", "management", "Subiect test", "Corp mesaj", db_path=db)
+    path = tools.outbox_path("MI-1", "management", db_path=db)
+    assert path.exists() and path.parent.name == "outbox"
+    msg = email.message_from_bytes(path.read_bytes(), policy=policy.default)
+    assert msg["To"] == tools.RECIPIENTS["management"]
+    assert msg["From"] == tools.SENDER
+    assert msg["Subject"] == "Subiect test"
+    assert msg["X-MIA-Incident"] == "MI-1"
+    assert "Corp mesaj" in msg.get_content()
+
+
+def test_duplicate_send_does_not_rewrite_eml(db):
+    tools.send_notification("MI-1", "end_users", "Prima", "B", db_path=db)
+    tools.send_notification("MI-1", "end_users", "A doua", "B2", db_path=db)
+    assert b"Prima" in tools.outbox_path("MI-1", "end_users", db_path=db).read_bytes()
+
+
+def test_unapproved_audience_gets_no_eml(db):
+    d = _decision()
+    d["communications"]["management"]["approved"] = False
+    tools.run_execution(d, db_path=db)
+    assert tools.outbox_path("MI-CL-1-abc123", "end_users", db_path=db).exists()
+    assert not tools.outbox_path("MI-CL-1-abc123", "management", db_path=db).exists()

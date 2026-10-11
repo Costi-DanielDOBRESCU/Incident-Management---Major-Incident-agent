@@ -31,6 +31,7 @@ from app.detection.embeddings import create_embedding
 from app.detection.pipeline import detect_clusters_with_matrix
 from app.detection.unclustered import find_unclustered
 from app.execution import audit_store, ticket_reviews
+from app.execution import ticket_archive, ticket_attach
 from app.execution import tools as execution_tools
 from app.ingestion import retention as ticket_retention
 from app.ingestion import ticket_store
@@ -64,7 +65,6 @@ with st.sidebar:
 
     VIEW_FLOW = "Flux incident"
     VIEW_HISTORY = "Istoric incidente"
-    VIEW_NOTIF = "Notificări trimise"
 
     if "nav_view" not in st.session_state:
         st.session_state["nav_view"] = VIEW_FLOW
@@ -74,9 +74,6 @@ with st.sidebar:
         st.rerun()
     if st.sidebar.button("Istoric incidente", use_container_width=True):
         st.session_state["nav_view"] = VIEW_HISTORY
-        st.rerun()
-    if st.sidebar.button("Notificări trimise", use_container_width=True):
-        st.session_state["nav_view"] = VIEW_NOTIF
         st.rerun()
 
     VIEW = st.session_state["nav_view"]
@@ -628,17 +625,17 @@ def _save_review(ticket_key: str, created: str, widget_key: str) -> None:
         st.session_state["review_error"] = str(exc)
 
 
-def _carry_over_unclustered(detection: dict | None) -> dict:
+def _carry_over_unclustered() -> dict:
     """
-    Inainte de o noua runda: pastreaza in tabelul de ingestie tichetele fara cluster
-    (Nerevizuit / De urmarit, in limita retentiei) si sterge restul (clusterizate, Tratat individual, expirate).
+    Inainte de o noua runda: sterge din tabelul de ingestie tichetele legate de un incident major declarat,
+    cele marcate „Tratat individual” si cele expirate. Tichetele din clustere respinse / abandonate si cele
+    fara cluster (Nerevizuit / De urmarit) raman, in limita retentiei.
     """
-    clustered = {k for c in (detection or {}).get("clusters", []) for k in c.ticket_ids}
     try:
         reviews = ticket_reviews.list_reviews()
     except Exception:  # noqa: BLE001
         reviews = {}
-    return ticket_retention.prune_tickets(clustered, settings.unclustered_retention_minutes, reviews)
+    return ticket_retention.prune_tickets(settings.unclustered_retention_minutes, reviews)
 
 
 def _render_unclustered(detection: dict, tickets_by_key: dict) -> None:
@@ -667,7 +664,8 @@ def _render_unclustered(detection: dict, tickets_by_key: dict) -> None:
     st.caption(
         f"Tichetele **nerevizuite** și **de urmărit** rămân în sistem cel mult "
         f"{settings.unclustered_retention_minutes} min și sunt reclusterizate împreună cu tichetele noi; "
-        "cele **tratate individual** se elimină la „Începe un incident nou”."
+        "cele **tratate individual** și cele legate de un incident declarat se elimină la „Începe un incident nou”. "
+        "Tichetele din clustere respinse rămân aici ca tichete individuale."
     )
 
     status_prefix = {"unreviewed": "[Nerevizuit]", "handled": "[Tratat]", "watch": "[De urmărit]"}
@@ -710,6 +708,17 @@ ACTION_LABELS = {
     "save_decision": "Decizie salvată",
     "remember_decision": "Salvat în memorie",
     "remember_decision_failed": "Eroare la salvarea în memorie",
+    "execute_actions": "Execuție rulată",
+    "execute_actions_failed": "Eroare la execuție",
+    "send_notification": "Notificare trimisă (simulat)",
+    "send_notification_skipped_duplicate": "Notificare omisă (deja trimisă)",
+    "update_ticket_status": "Status tichete actualizat",
+    "link_tickets_to_parent": "Tichete legate de incident",
+    "sync_ticket_store": "Tichete actualizate în baza locală",
+    "sync_ticket_store_failed": "Eroare la actualizarea tichetelor",
+    "archive_tickets": "Tichete arhivate",
+    "archive_tickets_failed": "Eroare la arhivarea tichetelor",
+    "attach_ticket_manual": "Tichet atașat manual la incident",
 }
 AUDIENCE_LABELS = {"end_users": "End users", "management": "Management"}
 
@@ -778,6 +787,7 @@ def _render_incident_detail(d: dict) -> None:
         if not comms:
             st.info("Nu au fost generate comunicări (incidentul nu a fost declarat).")
         else:
+            delivered = {n["audience"]: n for n in _safe_notifications(d["incident_id"])}
             for audience, c in comms.items():
                 with st.container(border=True):
                     st.markdown(
@@ -786,7 +796,23 @@ def _render_incident_detail(d: dict) -> None:
                     )
                     status = "aprobată" if c.get("approved") else "neaprobată"
                     note = "editată de operator" if c.get("edited") else "text generat, needitat"
-                    st.caption(f"{status} · {note}")
+                    sent = delivered.get(audience)
+                    if sent:
+                        delivery = f"trimisă ({sent['channel']}) la {_fmt_ts(sent['sent_at'])} UTC"
+                    elif c.get("approved"):
+                        delivery = "netrimisă (execuția nu a rulat)"
+                    else:
+                        delivery = "netrimisă (neaprobată)"
+                    st.caption(f"{status} · {note} · {delivery}")
+                    eml = execution_tools.outbox_path(d["incident_id"], audience)
+                    if sent and eml.exists():
+                        st.download_button(
+                            "Descarcă emailul trimis (.eml)",
+                            data=eml.read_bytes(),
+                            file_name=eml.name,
+                            mime="message/rfc822",
+                            key=f"eml_{d['incident_id']}_{audience}",
+                        )
                     st.markdown(f"**{c['subject']}**")
                     st.write(c["body"])
                     st.caption(f"Surse: {', '.join(c.get('rag_sources') or []) or '(fără surse)'}")
@@ -828,21 +854,185 @@ def _render_incident_detail(d: dict) -> None:
             st.markdown(f"- {s}")
         st.markdown(f"**Tichete din cluster ({len(ticket_ids)})**")
         st.caption(
-            "Detaliile complete sunt disponibile doar cât timp baza locală de tichete nu a fost "
-            "resetată (butonul „Începe un incident nou”)."
+            "Detaliile se citesc din arhiva salvată la decizie. Incidentele evaluate înainte de această "
+            "funcție le au doar cât timp baza locală de tichete nu a fost curățată."
         )
+        meta = _ticket_meta()
+        reviews = _safe_reviews()
+        try:
+            archived = ticket_archive.get_incident_tickets(d["incident_id"])
+        except Exception:  # noqa: BLE001
+            archived = {}
         for tkey in ticket_ids:
-            issue = ticket_store.get_raw_issue(tkey)
+            # arhiva (salvata la decizie) are prioritate: tickets.db se curata si cheile se pot repeta
+            issue = archived.get(tkey) or ticket_store.get_raw_issue(tkey)
             if issue:
                 title = issue["fields"].get("summary", "")
-                with st.expander(f"{tkey} · {title[:90]}"):
+                tag = _ticket_tag(meta.get(tkey), reviews)
+                with st.expander(f"[{tag}] {tkey} · {title[:90]}"):
                     _ticket_details(issue, key_prefix=f"hist_{d['incident_id']}")
             else:
                 st.caption(f"{tkey} (detalii indisponibile)")
 
 
+def _safe_notifications(incident_id: str) -> list[dict]:
+    """Notificarile (simulate) trimise de Execution Layer pentru un incident."""
+    try:
+        return execution_tools.list_notifications(limit=50, incident_id=incident_id)
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _safe_reviews() -> dict:
+    try:
+        return ticket_reviews.list_reviews()
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _ticket_meta() -> dict[str, dict]:
+    """Randurile din tickets.db, indexate dupa cheie (legatura cu incidentul, status, created)."""
+    try:
+        return {r["key"]: r for r in ticket_store.list_tickets(limit=5000)}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _ticket_tag(row: dict | None, reviews: dict) -> str:
+    """Eticheta de stare a unui tichet: legat de un incident declarat sau starea de revizuire."""
+    if row is None:
+        return "indisponibil"
+    if row.get("parent_incident_id"):
+        return f"Legat de {row['parent_incident_id']}"
+    status = reviews.get((row["key"], row["created"]), {}).get("status", "unreviewed")
+    return ticket_reviews.STATUS_LABELS.get(status, status)
+
+
+def _render_ticket_actions(row: dict, status: str, codes: list[str]) -> None:
+    """Actiuni manuale ale operatorului pe un tichet din afara incidentelor: stare + atasare la un incident declarat."""
+    st.markdown("**Acțiuni operator**")
+    widget_key = f"outside_review_{row['key']}_{row['created']}"
+    st.radio(
+        "Stare revizuire",
+        options=codes,
+        index=codes.index(status),
+        format_func=ticket_reviews.STATUS_LABELS.get,
+        horizontal=True,
+        key=widget_key,
+        on_change=_save_review,
+        args=(row["key"], row["created"], widget_key),
+    )
+
+    try:
+        incidents = ticket_attach.list_declared_incidents()
+    except Exception as exc:  # noqa: BLE001
+        incidents = []
+        st.warning(f"Nu pot citi incidentele declarate: {exc}")
+    if not incidents:
+        st.caption("Nu există incidente declarate la care să atașezi tichetul.")
+        return
+
+    labels = {
+        d["incident_id"]: f"{d['incident_id']} · {d['service'] or 'N/A'} · {d['severity'] or 'N/A'} · "
+        f"{d['ticket_count'] or 0} tichete"
+        for d in incidents
+    }
+    target = st.selectbox(
+        "Atașează la un incident declarat",
+        options=list(labels),
+        index=None,
+        placeholder="Alege incidentul...",
+        format_func=labels.get,
+        key=f"attach_target_{row['key']}",
+    )
+    if st.button("Atașează la incident", disabled=target is None, key=f"attach_btn_{row['key']}"):
+        try:
+            res = ticket_attach.attach_ticket_to_incident(row["key"], target, DECIDED_BY)
+        except ValueError as exc:
+            st.error(str(exc))
+        else:
+            st.session_state["attach_flash"] = (
+                f"Tichetul {row['key']} a fost atașat la {target} ({res['ticket_count']} tichete în incident)."
+            )
+            st.session_state["outside_nonce"] = st.session_state.get("outside_nonce", 0) + 1  # reseteaza selectia
+            st.rerun()
+
+
+def _render_outside_tickets() -> None:
+    """Tichetele care NU sunt legate de un incident declarat: fara cluster sau din clustere respinse / nepropuse."""
+    st.caption(
+        "Tichetele din baza locală care nu fac parte dintr-un incident major declarat: fără cluster sau din "
+        "clustere respinse / nepropuse de AI. Dispar când le elimină retenția (la „Începe un incident nou”)."
+    )
+    flash = st.session_state.pop("attach_flash", None)
+    if flash:
+        st.success(flash)
+
+    rows = [r for r in ticket_store.list_tickets(limit=5000) if not r.get("parent_incident_id")]
+    if not rows:
+        st.info("Nu există tichete în afara incidentelor declarate.")
+        return
+
+    reviews = _safe_reviews()
+    origin: dict[str, str] = {}
+    try:
+        for dec in audit_store.list_decisions(limit=500):
+            if dec["outcome"] == "declared":
+                continue
+            label = "Cluster respins" if dec["outcome"] == "rejected" else "Cluster nepropus de AI"
+            for k in dec.get("ticket_ids") or []:
+                origin.setdefault(k, f"{label} ({dec['incident_id']})")
+    except Exception:  # noqa: BLE001
+        pass
+
+    def _status(r: dict) -> str:
+        return reviews.get((r["key"], r["created"]), {}).get("status", "unreviewed")
+
+    codes = list(ticket_reviews.STATUS_LABELS)
+    chosen = st.multiselect(
+        "Stare revizuire",
+        options=codes,
+        default=codes,
+        format_func=ticket_reviews.STATUS_LABELS.get,
+        key="outside_status_filter",
+    )
+    shown = [r for r in rows if _status(r) in chosen]
+    st.caption(f"{len(shown)} tichete afișate din {len(rows)}.")
+    if not shown:
+        return
+
+    event = st.dataframe(
+        [
+            {
+                "ID": r["key"],
+                "Ora (UTC)": r["created"][11:19],
+                "Serviciu": r["service"],
+                "Rezumat": r["summary"],
+                "Stare": ticket_reviews.STATUS_LABELS.get(_status(r), _status(r)),
+                "Origine": origin.get(r["key"], "Fără cluster"),
+            }
+            for r in shown
+        ],
+        hide_index=True,
+        use_container_width=True,
+        on_select="rerun",
+        selection_mode="single-row",
+        key=f"outside_table_{st.session_state.get('outside_nonce', 0)}_" + ",".join(sorted(chosen)),
+    )
+    picked = event.selection.rows
+    if picked and picked[0] < len(shown):
+        row = shown[picked[0]]
+        issue = ticket_store.get_raw_issue(row["key"])
+        if issue:
+            with st.container(border=True):
+                _ticket_details(issue, key_prefix="outside")
+                _render_ticket_actions(row, _status(row), codes)
+    else:
+        st.caption("Selectează un tichet din tabel pentru detalii.")
+
+
 def _render_history_page() -> None:
-    """Pagina 'Istoric incidente': toate clusterele evaluate, cu filtre si analiza detaliata la selectie."""
+    """Pagina 'Istoric': incidentele evaluate si, separat, tichetele din afara incidentelor declarate."""
     st.markdown(
         '<div class="itsm-header-banner">'
         '<div>'
@@ -852,6 +1042,15 @@ def _render_history_page() -> None:
         '</div>',
         unsafe_allow_html=True,
     )
+    tab_inc, tab_out = st.tabs(["Incidente evaluate", "Tichete în afara incidentelor"])
+    with tab_inc:
+        _render_history_incidents()
+    with tab_out:
+        _render_outside_tickets()
+
+
+def _render_history_incidents() -> None:
+    """Toate clusterele evaluate, cu filtre si analiza detaliata la selectie."""
     st.caption(
         "Toate clusterele evaluate: decizii umane și clustere nepropuse de AI. "
         "Selectează un rând din tabel pentru analiza detaliată."
@@ -922,67 +1121,6 @@ def _render_history_page() -> None:
         _render_incident_detail(filtered[selected[0]])
     else:
         st.caption("Selectează un incident din tabel pentru a-i vedea detaliile.")
-
-
-def _render_notifications_page() -> None:
-    """Pagina 'Notificari trimise': comunicarile executate de Execution Layer + tichetele legate de incident."""
-    st.markdown(
-        '<div class="itsm-header-banner">'
-        '<div>'
-        '<div class="itsm-header-title">Notificări trimise &amp; Execuție</div>'
-        '<div class="itsm-header-sub">Comunicările aprobate și tichetele legate de incidentul major (simulat)</div>'
-        '</div>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-
-    notifications = execution_tools.list_notifications(limit=500)
-    if not notifications:
-        st.info("Nu a fost trimisă nicio notificare. Ele apar după aprobarea comunicărilor unui incident declarat.")
-        return
-
-    incident_ids = sorted({n["incident_id"] for n in notifications})
-    audiences = sorted({n["audience"] for n in notifications})
-    col_f1, col_f2 = st.columns(2)
-    with col_f1:
-        sel_incidents = st.multiselect("Incident", incident_ids, default=[])
-    with col_f2:
-        sel_audiences = st.multiselect("Audiență", audiences, default=[])
-
-    shown = [
-        n for n in notifications
-        if (not sel_incidents or n["incident_id"] in sel_incidents)
-        and (not sel_audiences or n["audience"] in sel_audiences)
-    ]
-    st.caption(f"{len(shown)} notificări afișate din {len(notifications)}.")
-
-    for n in shown:
-        label = f"{_fmt_ts(n['sent_at'])} · {n['incident_id']} · {n['audience']} · {n['subject']}"
-        with st.expander(label):
-            st.markdown(f"**Canal:** `{n['channel']}` · **Status:** `{n['status']}`")
-            st.markdown(f"**Subiect:** {n['subject']}")
-            st.text(n["body"])
-
-    st.subheader("Tichete legate de incident")
-    links = execution_tools.list_ticket_links(sel_incidents[0] if len(sel_incidents) == 1 else None)
-    if sel_incidents and len(sel_incidents) > 1:
-        links = [l for l in links if l["parent_incident_id"] in sel_incidents]
-    if links:
-        st.dataframe(
-            [
-                {
-                    "Tichet": l["ticket_key"],
-                    "Incident părinte": l["parent_incident_id"],
-                    "Status": l["status"],
-                    "Actualizat": _fmt_ts(l["updated_at"]),
-                }
-                for l in links
-            ],
-            use_container_width=True,
-            hide_index=True,
-        )
-    else:
-        st.caption("Niciun tichet legat.")
 
 
 @st.fragment(run_every=2)
@@ -1058,7 +1196,7 @@ def _compute_detection(tickets: list[dict]) -> dict:
 
 def _start_detection() -> None:
     """Un singur click de la tichete la clustere: snapshot + detectie, apoi se trece la pasul 2."""
-    snapshot = ticket_store.list_raw_issues()
+    snapshot = ticket_store.list_raw_issues(exclude_linked=True)  # cele legate de un incident declarat nu reintra
     if not snapshot:
         st.warning("Încă nu a sosit niciun tichet.")
         return
@@ -1088,10 +1226,6 @@ if not st.session_state.get("sim_started"):
 
 if VIEW == VIEW_HISTORY:
     _render_history_page()
-    st.stop()
-
-if VIEW == VIEW_NOTIF:
-    _render_notifications_page()
     st.stop()
 
 # ITSM Command Center Main Header
@@ -1679,7 +1813,8 @@ elif step == 5:
         "Păstrează tichetele fără cluster (nerevizuite / de urmărit) pentru următoarea detecție",
         value=True,
         key=f"keep_unclustered_{st.session_state['thread_id']}",
-        help="Tichetele clusterizate și cele marcate „Tratat individual” se elimină oricum.",
+        help="Tichetele legate de un incident declarat și cele marcate „Tratat individual” se elimină oricum. "
+        "Cele din clustere respinse rămân ca tichete individuale.",
     )
 
     col_a, col_b = st.columns([1, 5])
@@ -1692,7 +1827,7 @@ elif step == 5:
         if st.button("Începe un incident nou", disabled=not discard_ok, type="secondary" if unfinished else "primary"):
             _mock_post("/mock/reset")
             if keep_unclustered:
-                _carry_over_unclustered(st.session_state.get("detection_result"))
+                _carry_over_unclustered()
             else:
                 ticket_store.reset_db()
             _mock_post("/mock/start")
