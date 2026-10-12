@@ -1046,6 +1046,162 @@ def _render_outside_tickets() -> None:
         st.caption("Selectează un tichet din tabel pentru detalii.")
 
 
+SEARCH_BELONGS_LABELS = {
+    "incident": "În incident declarat",
+    "outside": "În afara incidentelor",
+    "archived": "Din cluster evaluat (fără incident)",
+}
+SEARCH_MAX_RESULTS = 300
+
+
+def _search_build_corpus(live_issues: list[dict], live_rows: list[dict], archived: list[tuple[str, dict]],
+                         outcomes: dict[str, str]) -> list[dict]:
+    """
+    Uneste tichetele curente cu cele arhivate (dedup dupa (cheie, created); cel curent are prioritate).
+    Intoarce [{"issue", "belongs", "incident_id"}].
+    """
+    meta = {(r["key"], r["created"]): r for r in live_rows}
+    entries: dict[tuple[str, str], dict] = {}
+    for issue in live_issues:
+        ident = (issue["key"], issue["fields"]["created"])
+        parent = (meta.get(ident) or {}).get("parent_incident_id")
+        entries[ident] = {"issue": issue, "belongs": "incident" if parent else "outside", "incident_id": parent}
+    for incident_id, issue in archived:
+        ident = (issue["key"], issue["fields"]["created"])
+        if ident in entries:
+            continue
+        declared = outcomes.get(incident_id) == "declared"
+        entries[ident] = {"issue": issue, "belongs": "incident" if declared else "archived", "incident_id": incident_id}
+    return list(entries.values())
+
+
+def _search_filter(entries: list[dict], query: str = "", services: list[str] | None = None,
+                   belongs: list[str] | None = None) -> list[dict]:
+    """Toti termenii trebuie sa apara in ID / rezumat / descriere (fara diferenta litere mari-mici)."""
+    terms = [t for t in query.lower().split() if t]
+    results = []
+    for entry in entries:
+        issue = entry["issue"]
+        fields = issue.get("fields") or {}
+        if services and _ticket_service(issue) not in services:
+            continue
+        if belongs and entry["belongs"] not in belongs:
+            continue
+        found: list[str] = []
+        if terms:
+            texts = {
+                "ID": issue["key"].lower(),
+                "Rezumat": (fields.get("summary") or "").lower(),
+                "Descriere": (fields.get("description") or "").lower(),
+            }
+            haystack = " ".join(texts.values())
+            if not all(t in haystack for t in terms):
+                continue
+            found = [name for name, text in texts.items() if any(t in text for t in terms)]
+        results.append({**entry, "found": found})
+    results.sort(key=lambda e: e["issue"]["fields"].get("created", ""), reverse=True)
+    return results
+
+
+def _search_load_corpus() -> list[dict]:
+    """Tichetele din tickets.db + cele arhivate la deciziile din Istoric (erorile de citire dau liste goale)."""
+    try:
+        live_issues = ticket_store.list_raw_issues(limit=5000)
+        live_rows = ticket_store.list_tickets(limit=5000)
+    except Exception:  # noqa: BLE001
+        live_issues, live_rows = [], []
+    archived: list[tuple[str, dict]] = []
+    outcomes: dict[str, str] = {}
+    try:
+        for dec in audit_store.list_decisions(limit=500):
+            outcomes[dec["incident_id"]] = dec["outcome"]
+            for issue in ticket_archive.get_incident_tickets(dec["incident_id"]).values():
+                archived.append((dec["incident_id"], issue))
+    except Exception:  # noqa: BLE001
+        pass
+    return _search_build_corpus(live_issues, live_rows, archived, outcomes)
+
+
+def _render_ticket_search() -> None:
+    """Tabul „Căutare tichete” din Istoric: doar citeste, nu modifica nimic."""
+    st.caption(
+        "Caută în toate tichetele cunoscute: cele din baza locală și cele arhivate la deciziile din Istoric. "
+        "Poți căuta după ID, rezumat sau text din descriere, și poți filtra după serviciu."
+    )
+    entries = _search_load_corpus()
+    if not entries:
+        st.info("Nu există tichete de căutat încă.")
+        return
+
+    query = st.text_input(
+        "Caută tichet",
+        placeholder="ID, rezumat sau text din descriere (ex. INC-10255, Outlook)",
+        key="ticket_search_query",
+    )
+    c1, c2 = st.columns(2)
+    services = c1.multiselect(
+        "Serviciu",
+        options=sorted({_ticket_service(e["issue"]) for e in entries}),
+        placeholder="Toate serviciile",
+        key="ticket_search_services",
+    )
+    belongs = c2.multiselect(
+        "Apartenență",
+        options=list(SEARCH_BELONGS_LABELS),
+        format_func=SEARCH_BELONGS_LABELS.get,
+        placeholder="Toate",
+        key="ticket_search_belongs",
+    )
+
+    if not query.strip() and not services and not belongs:
+        st.caption(f"{len(entries)} tichete indexate. Introdu un termen sau alege un filtru pentru a vedea rezultate.")
+        return
+
+    results = _search_filter(entries, query, services, belongs)
+    if not results:
+        st.info("Niciun tichet nu se potrivește căutării.")
+        return
+    shown = results[:SEARCH_MAX_RESULTS]
+    extra = f" (afișez primele {SEARCH_MAX_RESULTS}, restrânge căutarea)" if len(results) > SEARCH_MAX_RESULTS else ""
+    st.caption(f"{len(results)} tichete găsite{extra}.")
+
+    def _belongs_text(e: dict) -> str:
+        label = SEARCH_BELONGS_LABELS[e["belongs"]]
+        return f"{label} · {e['incident_id']}" if e.get("incident_id") else label
+
+    table_key = "ticket_search_table_" + str(
+        hash((query.strip().lower(), tuple(sorted(services)), tuple(sorted(belongs))))
+    )
+    event = st.dataframe(
+        [
+            {
+                "ID": e["issue"]["key"],
+                "Creat (UTC)": _fmt_ts(e["issue"]["fields"].get("created")),
+                "Serviciu": _ticket_service(e["issue"]),
+                "Rezumat": e["issue"]["fields"].get("summary", ""),
+                "Apartenență": _belongs_text(e),
+                "Găsit în": ", ".join(e["found"]),
+            }
+            for e in shown
+        ],
+        hide_index=True,
+        use_container_width=True,
+        on_select="rerun",
+        selection_mode="single-row",
+        key=table_key,
+    )
+    picked = event.selection.rows
+    if picked and picked[0] < len(shown):
+        entry = shown[picked[0]]
+        with st.container(border=True):
+            _ticket_details(entry["issue"], key_prefix="search")
+            st.caption(f"Apartenență: {_belongs_text(entry)}")
+            if entry.get("incident_id"):
+                st.caption("Detaliile incidentului: tabul „Incidente evaluate”, rândul cu acest id.")
+    else:
+        st.caption("Selectează un tichet din tabel pentru detalii.")
+
+
 def _render_history_page() -> None:
     """Pagina 'Istoric': incidentele evaluate si, separat, tichetele din afara incidentelor declarate."""
     st.markdown(
@@ -1057,9 +1213,13 @@ def _render_history_page() -> None:
         '</div>',
         unsafe_allow_html=True,
     )
-    tab_inc, tab_out = st.tabs(["Incidente evaluate", "Tichete în afara incidentelor"])
+    tab_inc, tab_search, tab_out = st.tabs(
+        ["Incidente evaluate", "Căutare tichete", "Tichete în afara incidentelor"]
+    )
     with tab_inc:
         _render_history_incidents()
+    with tab_search:
+        _render_ticket_search()
     with tab_out:
         _render_outside_tickets()
 

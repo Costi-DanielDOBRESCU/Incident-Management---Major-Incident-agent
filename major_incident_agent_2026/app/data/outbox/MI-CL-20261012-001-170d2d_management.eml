@@ -1,0 +1,12 @@
+From: mia-noreply@company.example
+To: management@company.example
+Subject: Update on Major Incident MI-CL-20261012-001-170d2d (ERP System)
+Date: Mon, 12 Oct 2026 13:04:29 +0000
+X-MIA-Incident: MI-CL-20261012-001-170d2d
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+6 correlated tickets in 0.6 min, suspected cause: Central service disruption =
+affecting ERP System. Severity: SEV2. Status: being tracked. ETA next update:=
+ 14:04 UTC.
