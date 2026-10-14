@@ -65,6 +65,7 @@ with st.sidebar:
 
     VIEW_FLOW = "Flux incident"
     VIEW_HISTORY = "Istoric incidente"
+    VIEW_KPI = "KPI Dashboard"
 
     if "nav_view" not in st.session_state:
         st.session_state["nav_view"] = VIEW_FLOW
@@ -74,6 +75,9 @@ with st.sidebar:
         st.rerun()
     if st.sidebar.button("Istoric incidente", use_container_width=True):
         st.session_state["nav_view"] = VIEW_HISTORY
+        st.rerun()
+    if st.sidebar.button("KPI Dashboard", use_container_width=True):
+        st.session_state["nav_view"] = VIEW_KPI
         st.rerun()
 
     VIEW = st.session_state["nav_view"]
@@ -868,10 +872,7 @@ def _render_incident_detail(d: dict) -> None:
         for s in summaries:
             st.markdown(f"- {s}")
         st.markdown(f"**Tichete din cluster ({len(ticket_ids)})**")
-        st.caption(
-            "Detaliile se citesc din arhiva salvată la decizie. Incidentele evaluate înainte de această "
-            "funcție le au doar cât timp baza locală de tichete nu a fost curățată."
-        )
+        
         meta = _ticket_meta()
         reviews = _safe_reviews()
         try:
@@ -1242,11 +1243,11 @@ def _render_history_incidents() -> None:
 
     counts = Counter(_outcome_key(d) for d in decisions)
     declared = counts.get("declared", 0) + counts.get("declared_override", 0)
-    m1, m2, m3, m4 = st.columns(4)
+    m1, m2, m3 = st.columns(3)
     m1.metric("Total Incidente Evaluate", len(decisions))
     m2.metric("Declarate Major Incident", declared)
     m3.metric("Fără Impact Major", len(decisions) - declared)
-    m4.metric("Divergențe AI / Operator", counts.get("declared_override", 0) + counts.get("rejected", 0))
+    # m4.metric("Divergențe AI / Operator", counts.get("declared_override", 0) + counts.get("rejected", 0))
 
     f1, f2, f3 = st.columns(3)
     outcomes = f1.multiselect(
@@ -1401,6 +1402,12 @@ if not st.session_state.get("sim_started"):
 
 if VIEW == VIEW_HISTORY:
     _render_history_page()
+    st.stop()
+
+if VIEW == VIEW_KPI:
+    from app.ui.kpi_dashboard import render_kpi_page
+
+    render_kpi_page()
     st.stop()
 
 # ITSM Command Center Main Header

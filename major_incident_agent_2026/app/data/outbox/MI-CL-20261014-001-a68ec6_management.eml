@@ -1,0 +1,13 @@
+From: mia-noreply@company.example
+To: management@company.example
+Subject: Major Incident MI-CL-20261014-001-a68ec6 =?utf-8?b?4oCT?= Management
+ Update
+Date: Wed, 14 Oct 2026 07:59:16 +0000
+X-MIA-Incident: MI-CL-20261014-001-a68ec6
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+6 correlated tickets in 0.6 min, suspected cause: Central service disruption =
+affecting VPN Gateway. Severity: SEV2. Status: being tracked. ETA next update=
+: 08:58 UTC.
