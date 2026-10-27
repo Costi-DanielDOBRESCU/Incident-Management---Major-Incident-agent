@@ -61,8 +61,10 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    DECIDED_BY = st.sidebar.text_input("Operator activ", value="demo_user").strip() or "demo_user"
-
+    # DECIDED_BY = st.sidebar.text_input("Operator activ", value="demo_user").strip() or "demo_user"
+    DECIDED_BY = "demo_user"
+    st.sidebar.text(f"Operator activ: {DECIDED_BY}")
+    
     VIEW_FLOW = "Flux incident"
     VIEW_HISTORY = "Istoric incidente"
     VIEW_KPI = "KPI Dashboard"
@@ -1474,7 +1476,7 @@ elif step == 1:
     _node_box(
             "Detection Pipeline",
             f"Analizează tichetele noi, identifică tipare comune și grupează incidentele corelate "
-            f"(fereastră de {settings.clustering_window_minutes} minute) pentru a detecta posibile probleme majore.",
+            f"pentru a detecta posibile probleme majore.",
     )
 
     tickets = st.session_state["stream_tickets"]

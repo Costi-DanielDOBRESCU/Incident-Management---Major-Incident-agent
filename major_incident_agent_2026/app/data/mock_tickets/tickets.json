@@ -13056,7 +13056,7 @@
     {
       "key": "INC-10503",
       "fields": {
-        "summary": "cannot open shared projcet folder",
+        "summary": "cannot open shared project folder",
         "description": "The user can no longer open the Finance/Q3 shared folder; access was available previously or is required for current project work. Please verify the folder’s sharing configuration and the user’s permissions.",
         "created": "2026-08-12T09:34:18.000+0000",
         "priority": {
