@@ -1305,7 +1305,7 @@ def _render_history_incidents() -> None:
 def _live_tickets_view() -> None:
     """Tabelul cu tichete, reimprospatat automat la 2s."""
     rows = ticket_store.list_tickets(limit=200)
-    st.caption(f"{ticket_store.count_tickets()} tichete în baza locală (actualizare automată la 2s, cele mai noi primele)")
+    st.caption(f"{ticket_store.count_tickets()} tichete în baza locală (actualizare automată)")
     if rows:
         st.dataframe(
             [

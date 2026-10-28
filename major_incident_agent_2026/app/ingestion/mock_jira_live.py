@@ -54,9 +54,10 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 TICKET_INTERVAL_SECONDS = 5.0    # intervalul mediu dintre tichete
 INTERVAL_JITTER_SECONDS = 2.0    # variatie aleatorie +/- (0 = interval fix)
-TICKETS_PER_RUN = 8              # cate tichete se trimit intr-un flux
-PRIMARY_TICKETS = 6              # din care: tichete din categoria principala (incident/capcana)
-TRAP_PROBABILITY = 0.35          # sansa ca un flux sa aiba ca principala o capcana, nu un incident
+TICKETS_PER_RUN = 12              # cate tichete se trimit intr-un flux
+PRIMARY_TICKETS = 5              # din care: tichete din categoria principala (incident/capcana)
+TRAP_PROBABILITY = 0.15          # sansa ca un flux sa aiba ca principala o capcana, nu un incident
+N_CLUSTERS = 2                   # cate clustere pe flux
 GROUND_TRUTH_FILE = TICKETS_FILE.parent / "ground_truth.json"
 
 # ---------------------------------------------------------------------------
@@ -152,10 +153,68 @@ def create_issue(body: NewIssue) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Simulator
 # ---------------------------------------------------------------------------
+# def _build_run() -> tuple[list[dict[str, Any]], dict[str, Any]]:
+#     """
+#     Compune un flux de TICKETS_PER_RUN tichete: categoria principala (incident sau capcana)
+#     + zgomot din alte servicii. Intoarce (tichete in ordinea emiterii, descrierea fluxului).
+#     """
+#     issues = {i["key"]: i for i in _load_issues()}
+#     truth = json.loads(GROUND_TRUTH_FILE.read_text(encoding="utf-8"))
+
+#     def service(issue: dict[str, Any]) -> str:
+#         comps = issue["fields"].get("components") or []
+#         return comps[0]["name"] if comps else "Unknown"
+
+#     incidents: dict[str, list[dict[str, Any]]] = {}
+#     traps: dict[str, list[dict[str, Any]]] = {}
+#     noise: list[dict[str, Any]] = []
+#     for g in truth:
+#         issue = issues.get(g["ticket_id"])
+#         if issue is None:
+#             continue
+#         if g["incident_group_id"]:
+#             incidents.setdefault(g["incident_group_id"], []).append(issue)
+#         elif g["is_false_positive_trap"]:
+#             traps.setdefault(g["root_cause_id"], []).append(issue)
+#         else:
+#             noise.append(issue)
+
+#     min_size = 3  # sub acest numar un grup nu poate forma cluster
+#     trap_options = {k: v for k, v in traps.items() if len(v) >= min_size}
+#     use_trap = bool(trap_options) and random.random() < TRAP_PROBABILITY
+#     kind, pool = ("trap", trap_options) if use_trap else ("incident", incidents)
+
+#     category = random.choice(list(pool))
+#     members = pool[category]
+#     primary = random.sample(members, k=min(PRIMARY_TICKETS, len(members)))
+#     primary_service = service(primary[0])
+
+#     # zgomot: tichete din alte servicii, cate unul per serviciu
+#     n_noise = max(0, TICKETS_PER_RUN - len(primary))
+#     by_service: dict[str, list[dict[str, Any]]] = {}
+#     for issue in noise:
+#         if service(issue) != primary_service:
+#             by_service.setdefault(service(issue), []).append(issue)
+#     chosen_services = random.sample(list(by_service), k=min(n_noise, len(by_service)))
+#     filler = [random.choice(by_service[s_]) for s_ in chosen_services]
+
+#     emitted = primary + filler
+#     random.shuffle(emitted)
+
+#     info = {
+#         "kind": kind,
+#         "group": category,
+#         "service": primary_service,
+#         "root_cause": truth_cause(truth, primary[0]["key"]),
+#         "primary_tickets": sorted(i["key"] for i in primary),
+#         "noise_tickets": sorted(i["key"] for i in filler),
+#     }
+#     return emitted, info
+
 def _build_run() -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """
-    Compune un flux de TICKETS_PER_RUN tichete: categoria principala (incident sau capcana)
-    + zgomot din alte servicii. Intoarce (tichete in ordinea emiterii, descrierea fluxului).
+    Compune un flux de TICKETS_PER_RUN tichete: N_CLUSTERS grupuri din servicii
+    DIFERITE (cate PRIMARY_TICKETS fiecare) + zgomot din restul serviciilor.
     """
     issues = {i["key"]: i for i in _load_issues()}
     truth = json.loads(GROUND_TRUTH_FILE.read_text(encoding="utf-8"))
@@ -178,21 +237,36 @@ def _build_run() -> tuple[list[dict[str, Any]], dict[str, Any]]:
         else:
             noise.append(issue)
 
-    min_size = 3  # sub acest numar un grup nu poate forma cluster
-    trap_options = {k: v for k, v in traps.items() if len(v) >= min_size}
-    use_trap = bool(trap_options) and random.random() < TRAP_PROBABILITY
-    kind, pool = ("trap", trap_options) if use_trap else ("incident", incidents)
+    min_size = PRIMARY_TICKETS  # grupul trebuie sa aiba destule tichete
+    inc_pool = {k: v for k, v in incidents.items() if len(v) >= min_size}
+    trap_pool = {k: v for k, v in traps.items() if len(v) >= min_size}
 
-    category = random.choice(list(pool))
-    members = pool[category]
-    primary = random.sample(members, k=min(PRIMARY_TICKETS, len(members)))
-    primary_service = service(primary[0])
+    chosen: list[tuple[str, str, list[dict[str, Any]]]] = []  # (kind, group, members)
+    used_services: set[str] = set()
 
-    # zgomot: tichete din alte servicii, cate unul per serviciu
+    for n in range(N_CLUSTERS):
+        # doar al doilea cluster poate fi capcana (primul e mereu incident real)
+        use_trap = n > 0 and bool(trap_pool) and random.random() < TRAP_PROBABILITY
+        kind, pool = ("trap", trap_pool) if use_trap else ("incident", inc_pool)
+
+        options = [
+            k for k, v in pool.items()
+            if service(v[0]) not in used_services
+        ]
+        if not options:
+            break
+        group = random.choice(options)
+        members = random.sample(pool[group], k=PRIMARY_TICKETS)
+        used_services.add(service(members[0]))
+        chosen.append((kind, group, members))
+
+    primary = [i for _, _, members in chosen for i in members]
+
+    # zgomot: cate un tichet per serviciu, din servicii neutilizate de clustere
     n_noise = max(0, TICKETS_PER_RUN - len(primary))
     by_service: dict[str, list[dict[str, Any]]] = {}
     for issue in noise:
-        if service(issue) != primary_service:
+        if service(issue) not in used_services:
             by_service.setdefault(service(issue), []).append(issue)
     chosen_services = random.sample(list(by_service), k=min(n_noise, len(by_service)))
     filler = [random.choice(by_service[s_]) for s_ in chosen_services]
@@ -201,11 +275,16 @@ def _build_run() -> tuple[list[dict[str, Any]], dict[str, Any]]:
     random.shuffle(emitted)
 
     info = {
-        "kind": kind,
-        "group": category,
-        "service": primary_service,
-        "root_cause": truth_cause(truth, primary[0]["key"]),
-        "primary_tickets": sorted(i["key"] for i in primary),
+        "clusters": [
+            {
+                "kind": kind,
+                "group": group,
+                "service": service(members[0]),
+                "root_cause": truth_cause(truth, members[0]["key"]),
+                "tickets": sorted(i["key"] for i in members),
+            }
+            for kind, group, members in chosen
+        ],
         "noise_tickets": sorted(i["key"] for i in filler),
     }
     return emitted, info
