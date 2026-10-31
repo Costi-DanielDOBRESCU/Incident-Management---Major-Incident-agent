@@ -56,7 +56,7 @@ TICKET_INTERVAL_SECONDS = 5.0    # intervalul mediu dintre tichete
 INTERVAL_JITTER_SECONDS = 2.0    # variatie aleatorie +/- (0 = interval fix)
 TICKETS_PER_RUN = 12              # cate tichete se trimit intr-un flux
 PRIMARY_TICKETS = 5              # din care: tichete din categoria principala (incident/capcana)
-TRAP_PROBABILITY = 0.15          # sansa ca un flux sa aiba ca principala o capcana, nu un incident
+TRAP_PROBABILITY = 0.4          # sansa ca un flux sa aiba ca principala o capcana, nu un incident
 N_CLUSTERS = 2                   # cate clustere pe flux
 GROUND_TRUTH_FILE = TICKETS_FILE.parent / "ground_truth.json"
 
